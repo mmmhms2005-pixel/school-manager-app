@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.schoolmanager.ui.screens.ClassesScreen
 import com.example.schoolmanager.ui.screens.DashboardScreen
 import com.example.schoolmanager.ui.screens.StudentsScreen
 import com.example.schoolmanager.ui.theme.SchoolTheme
@@ -42,7 +43,7 @@ fun AppNav() {
     NavHost(navController = nav, startDestination = "dashboard") {
         composable("dashboard") { DashboardScreen(nav) }
         composable("students") { StudentsScreen(nav) }
-        composable("classes") { PlaceholderScreen("الصفوف والشعب") }
+        composable("classes") { ClassesScreen(nav) }
         composable("subjects") { PlaceholderScreen("المواد الدراسية") }
         composable("teachers") { PlaceholderScreen("المعلمون") }
         composable("grades") { PlaceholderScreen("الدرجات") }
