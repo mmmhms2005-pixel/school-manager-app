@@ -1,34 +1,54 @@
 package com.example.schoolmanager.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.schoolmanager.SchoolApplication
-import com.example.schoolmanager.data.SchoolClass
-import com.example.schoolmanager.data.Section
+import com.example.schoolmanager.data.GradeCalculator
+import com.example.schoolmanager.data.Grade
+import com.example.schoolmanager.data.Student
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+object GradeRowStateHolder {
+    // المفتاح الآن مركب: studentId|subjectId|period
+    private val map = mutableStateMapOf<String, GradeRowState>()
+    private fun key(studentId: String, subjectId: String, period: Int) =
+        "$studentId|$subjectId|$period"
+    fun update(studentId: String, subjectId: String, period: Int, state: GradeRowState) {
+        map[key(studentId, subjectId, period)] = state
+    }
+    fun get(studentId: String, subjectId: String, period: Int): GradeRowState? =
+        map[key(studentId, subjectId, period)]
+    fun snapshot(): Map<String, GradeRowState> = map.toMap()
+    fun clear() = map.clear()
+}
+
+data class GradeRowState(
+    val homework: Int, val oral: Int, val absence: Int, val written: Int
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClassesScreen(nav: NavController) {
+fun GradesScreen(nav: NavController) {
     val ctx = LocalContext.current
     val app = ctx.applicationContext as SchoolApplication
     val dao = app.database.dao()
@@ -36,16 +56,43 @@ fun ClassesScreen(nav: NavController) {
 
     val classes by dao.classes().collectAsState(initial = emptyList())
     val sections by dao.sections().collectAsState(initial = emptyList())
+    val subjects by dao.subjects().collectAsState(initial = emptyList())
     val students by dao.students().collectAsState(initial = emptyList())
+    val allGrades by dao.grades().collectAsState(initial = emptyList())
 
-    var showDialog by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<SchoolClass?>(null) }
-    var deleting by remember { mutableStateOf<SchoolClass?>(null) }
+    var classId by remember { mutableStateOf("") }
+    var sectionId by remember { mutableStateOf("") }
+    var subjectId by remember { mutableStateOf("") }
+    var period by remember { mutableStateOf(1) }
+
+    var classExpanded by remember { mutableStateOf(false) }
+    var sectionExpanded by remember { mutableStateOf(false) }
+    var subjectExpanded by remember { mutableStateOf(false) }
+    var periodExpanded by remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // إعادة تعيين المفاتيح عند تغيير المادة أو الفترة (لمنع خلط البيانات)
+    LaunchedEffect(subjectId, period) {
+        GradeRowStateHolder.clear()
+    }
+
+    val filteredStudents = students.filter { s ->
+        (classId.isBlank() || s.classId == classId) &&
+        (sectionId.isBlank() || s.sectionId == sectionId)
+    }.sortedBy { it.number.toIntOrNull() ?: 0 }
+
+    val availableSubjects = subjects.filter { subj ->
+        subj.classIds.isBlank() || subj.classIds.split(",").contains(classId)
+    }
+
+    val isExam = GradeCalculator.isExam(period)
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("الصفوف والشعب", fontWeight = FontWeight.Bold) },
+                title = { Text("إدخال الدرجات", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "رجوع")
@@ -57,135 +104,209 @@ fun ClassesScreen(nav: NavController) {
                     navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { editing = null; showDialog = true },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("إضافة صف") }
-            )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            Card(
-                Modifier.fillMaxWidth().padding(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Text(
-                    "📌 تم اعتماد 12 صفاً دراسياً: الأول إلى التاسع، ثم الأول والثاني والثالث الثانوي.",
-                    Modifier.padding(12.dp),
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
+        Column(Modifier.fillMaxSize().padding(padding).padding(10.dp)) {
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(classes.sortedBy { it.order }, key = { it.id }) { cls ->
-                    ClassCard(
-                        cls = cls,
-                        sections = sections,
-                        studentCount = students.count { it.classId == cls.id },
-                        onEdit = { editing = cls; showDialog = true },
-                        onDelete = { deleting = cls }
-                    )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.weight(1f)) {
+                    ExposedDropdownMenuBox(classExpanded, { classExpanded = !classExpanded }) {
+                        OutlinedTextField(
+                            value = classes.find { it.id == classId }?.name ?: "الصف",
+                            onValueChange = {}, readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(classExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                            singleLine = true
+                        )
+                        ExposedDropdownMenu(classExpanded, { classExpanded = false }) {
+                            classes.forEach { c ->
+                                DropdownMenuItem(
+                                    text = { Text(c.name) },
+                                    onClick = { classId = c.id; sectionId = ""; classExpanded = false }
+                                )
+                            }
+                        }
+                    }
                 }
-            }
-        }
-    }
-
-    if (showDialog) {
-        ClassDialog(
-            cls = editing,
-            sections = sections,
-            onDismiss = { showDialog = false },
-            onSave = { c ->
-                scope.launch {
-                    if (editing == null) dao.insertClass(c)
-                    else dao.updateClass(c)
-                }
-                showDialog = false
-            }
-        )
-    }
-
-    deleting?.let { c ->
-        AlertDialog(
-            onDismissRequest = { deleting = null },
-            title = { Text("تأكيد الحذف") },
-            text = { Text("هل تريد حذف الصف ${c.name}؟") },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope.launch { dao.deleteClass(c) }
-                    deleting = null
-                }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { deleting = null }) { Text("إلغاء") }
-            }
-        )
-    }
-}
-
-@Composable
-fun ClassCard(
-    cls: SchoolClass,
-    sections: List<Section>,
-    studentCount: Int,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val allowedSections = cls.sectionIds.split(",").filter { it.isNotBlank() }
-    val classSections = sections.filter { it.id in allowedSections }
-
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp)) {
-            Text(cls.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Spacer(Modifier.height(6.dp))
-            Text("$studentCount طالب", fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.secondary)
-            Spacer(Modifier.height(8.dp))
-
-            if (classSections.isEmpty()) {
-                Text("لا توجد شعب", fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.secondary)
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    classSections.forEach { s ->
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(s.name, Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Box(Modifier.weight(1f)) {
+                    ExposedDropdownMenuBox(sectionExpanded, { sectionExpanded = !sectionExpanded }) {
+                        OutlinedTextField(
+                            value = sections.find { it.id == sectionId }?.name ?: "الشعبة",
+                            onValueChange = {}, readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(sectionExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                            singleLine = true
+                        )
+                        ExposedDropdownMenu(sectionExpanded, { sectionExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text("الكل") },
+                                onClick = { sectionId = ""; sectionExpanded = false }
+                            )
+                            sections.forEach { s ->
+                                DropdownMenuItem(
+                                    text = { Text(s.name) },
+                                    onClick = { sectionId = s.id; sectionExpanded = false }
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("ترتيب: ${cls.order}", fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.secondary)
-                Row {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "تعديل",
-                            tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(6.dp))
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.weight(1f)) {
+                    ExposedDropdownMenuBox(subjectExpanded, { subjectExpanded = !subjectExpanded }) {
+                        OutlinedTextField(
+                            value = subjects.find { it.id == subjectId }?.name ?: "المادة",
+                            onValueChange = {}, readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(subjectExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                            singleLine = true
+                        )
+                        ExposedDropdownMenu(subjectExpanded, { subjectExpanded = false }) {
+                            if (availableSubjects.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("اختر الصف أولاً") },
+                                    onClick = { subjectExpanded = false }
+                                )
+                            }
+                            availableSubjects.forEach { s ->
+                                DropdownMenuItem(
+                                    text = { Text(s.name) },
+                                    onClick = { subjectId = s.id; subjectExpanded = false }
+                                )
+                            }
+                        }
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "حذف",
-                            tint = MaterialTheme.colorScheme.error)
+                }
+                Box(Modifier.weight(1f)) {
+                    ExposedDropdownMenuBox(periodExpanded, { periodExpanded = !periodExpanded }) {
+                        OutlinedTextField(
+                            value = GradeCalculator.periodName(period),
+                            onValueChange = {}, readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(periodExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                            singleLine = true
+                        )
+                        ExposedDropdownMenu(periodExpanded, { periodExpanded = false }) {
+                            GradeCalculator.PERIODS.forEach { (p, name) ->
+                                DropdownMenuItem(
+                                    text = { Text(name) },
+                                    onClick = { period = p; periodExpanded = false }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isExam)
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    else MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Text(
+                    if (isExam)
+                        "📌 فترة امتحان: الدرجة من 30 (التحريري فقط)."
+                    else
+                        "📌 الواجبات(20) + الشفهي(20) + المواظبة(20) + التحريري(40) ÷ 5. المواظبة = 20 − الغياب.",
+                    Modifier.padding(10.dp),
+                    fontSize = 11.sp
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            if (classId.isBlank() || subjectId.isBlank() || filteredStudents.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📝", fontSize = 56.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            if (filteredStudents.isEmpty() && classId.isNotBlank())
+                                "لا يوجد طلاب في هذا الصف"
+                            else "اختر الصف والمادة",
+                            fontWeight = FontWeight.Bold, fontSize = 16.sp
+                        )
+                    }
+                }
+            } else {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            try {
+                                val count = saveAllGrades(dao, filteredStudents, subjectId, period)
+                                snackbarHostState.showSnackbar(
+                                    message = "✅ تم حفظ $count درجة بنجاح",
+                                    duration = SnackbarDuration.Short
+                                )
+                            } catch (e: Exception) {
+                                snackbarHostState.showSnackbar(
+                                    message = "❌ حدث خطأ أثناء الحفظ: ${e.message}",
+                                    duration = SnackbarDuration.Long
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("حفظ الدرجات", fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Card(Modifier.weight(1f)) {
+                    Column(Modifier.fillMaxSize()) {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            HeaderCell("#", 28.dp)
+                            HeaderCell("الاسم", 120.dp)
+                            if (isExam) {
+                                HeaderCell("تحريري/30", 75.dp)
+                                HeaderCell("المجموع", 60.dp)
+                            } else {
+                                HeaderCell("واجب/20", 70.dp)
+                                HeaderCell("شفهي/20", 70.dp)
+                                HeaderCell("غياب", 55.dp)
+                                HeaderCell("مواظبة", 60.dp)
+                                HeaderCell("تحريري/40", 75.dp)
+                                HeaderCell("المجموع", 60.dp)
+                            }
+                        }
+                        Divider()
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(filteredStudents, key = { it.id }) { student ->
+                                GradeRow(
+                                    student = student,
+                                    subjectId = subjectId,
+                                    period = period,
+                                    existing = allGrades.find {
+                                        it.studentId == student.id &&
+                                        it.subjectId == subjectId &&
+                                        it.period == period
+                                    }
+                                )
+                                Divider()
+                            }
+                        }
                     }
                 }
             }
@@ -193,79 +314,151 @@ fun ClassCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClassDialog(
-    cls: SchoolClass?,
-    sections: List<Section>,
-    onDismiss: () -> Unit,
-    onSave: (SchoolClass) -> Unit
-) {
-    var name by remember { mutableStateOf(cls?.name ?: "") }
-    var order by remember { mutableStateOf((cls?.order ?: 1).toString()) }
-    var selectedSections by remember {
-        mutableStateOf(cls?.sectionIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList())
+private fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp) {
+    Box(Modifier.width(width), contentAlignment = Alignment.Center) {
+        Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+            maxLines = 2, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun GradeRow(student: Student, subjectId: String, period: Int, existing: Grade?) {
+    val isExam = GradeCalculator.isExam(period)
+
+    // المفاتيح الآن: student.id + subjectId + period — لمنع خلط المواد
+    var homework by remember(student.id, subjectId, period) {
+        mutableStateOf(existing?.homework?.takeIf { it > 0 }?.toString() ?: "")
+    }
+    var oral by remember(student.id, subjectId, period) {
+        mutableStateOf(existing?.oral?.takeIf { it > 0 }?.toString() ?: "")
+    }
+    var absence by remember(student.id, subjectId, period) {
+        mutableStateOf(existing?.absence?.takeIf { it > 0 }?.toString() ?: "")
+    }
+    var written by remember(student.id, subjectId, period) {
+        mutableStateOf(existing?.written?.takeIf { it > 0 }?.toString() ?: "")
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (cls == null) "إضافة صف" else "تعديل الصف") },
-        text = {
-            Column(Modifier.fillMaxWidth().padding(4.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("اسم الصف *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = order,
-                    onValueChange = { order = it.filter { c -> c.isDigit() } },
-                    label = { Text("ترتيب الصف *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                Spacer(Modifier.height(12.dp))
-                Text("الشعب المتاحة في هذا الصف:", fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp)
-                Spacer(Modifier.height(6.dp))
-                sections.forEach { s ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = s.id in selectedSections,
-                            onCheckedChange = { checked ->
-                                selectedSections = if (checked)
-                                    selectedSections + s.id
-                                else
-                                    selectedSections - s.id
-                            }
-                        )
-                        Text(s.name)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = name.isNotBlank() && order.isNotBlank(),
-                onClick = {
-                    onSave(SchoolClass(
-                        id = cls?.id ?: UUID.randomUUID().toString(),
-                        name = name.trim(),
-                        order = order.toIntOrNull() ?: 1,
-                        sectionIds = selectedSections.joinToString(",")
-                    ))
-                }
-            ) { Text("حفظ") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("إلغاء") }
-        }
+    LaunchedEffect(homework, oral, absence, written, subjectId, period) {
+        GradeRowStateHolder.update(
+            studentId = student.id,
+            subjectId = subjectId,
+            period = period,
+            state = GradeRowState(
+                homework = homework.toIntOrNull() ?: 0,
+                oral = oral.toIntOrNull() ?: 0,
+                absence = absence.toIntOrNull() ?: 0,
+                written = written.toIntOrNull() ?: 0
+            )
+        )
+    }
+
+    val computed = GradeCalculator.compute(
+        period = period,
+        homework = homework.toIntOrNull() ?: 0,
+        oral = oral.toIntOrNull() ?: 0,
+        absence = absence.toIntOrNull() ?: 0,
+        written = written.toIntOrNull() ?: 0
     )
+
+    Row(
+        Modifier.fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(vertical = 4.dp, horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.width(28.dp), contentAlignment = Alignment.Center) {
+            Text(student.number, fontSize = 10.sp)
+        }
+        Box(Modifier.width(120.dp)) {
+            Text(student.name, fontSize = 11.sp, maxLines = 1)
+        }
+        if (isExam) {
+            NumberInput(written, { written = it }, 75.dp, 30, ImeAction.Done)
+            Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
+                Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error)
+            }
+        } else {
+            NumberInput(homework, { homework = it }, 70.dp, 20, ImeAction.Next)
+            NumberInput(oral, { oral = it }, 70.dp, 20, ImeAction.Next)
+            NumberInput(absence, { absence = it }, 55.dp, 20, ImeAction.Next)
+            Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
+                Text("${computed.attendance}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary)
+            }
+            NumberInput(written, { written = it }, 75.dp, 40, ImeAction.Done)
+            Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
+                Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NumberInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    width: androidx.compose.ui.unit.Dp,
+    max: Int,
+    imeAction: ImeAction
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { new ->
+            val filtered = new.filter(Char::isDigit)
+            val intVal = filtered.toIntOrNull() ?: 0
+            onValueChange(if (intVal > max) max.toString() else filtered)
+        },
+        modifier = Modifier.width(width).height(50.dp),
+        singleLine = true,
+        textStyle = LocalTextStyle.current.copy(
+            fontSize = 12.sp, textAlign = TextAlign.Center
+        ),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Number,
+            imeAction = imeAction
+        )
+    )
+}
+
+private suspend fun saveAllGrades(
+    dao: com.example.schoolmanager.data.SchoolDao,
+    students: List<Student>,
+    subjectId: String,
+    period: Int
+): Int {
+    val snapshot = GradeRowStateHolder.snapshot()
+    var count = 0
+    students.forEach { student ->
+        val key = "${student.id}|$subjectId|$period"
+        val state = snapshot[key] ?: return@forEach
+        val computed = GradeCalculator.compute(
+            period = period,
+            homework = state.homework,
+            oral = state.oral,
+            absence = state.absence,
+            written = state.written
+        )
+        val existing = dao.findGrade(student.id, subjectId, period)
+        val grade = Grade(
+            id = existing?.id ?: UUID.randomUUID().toString(),
+            studentId = student.id,
+            subjectId = subjectId,
+            period = period,
+            homework = computed.homework,
+            oral = computed.oral,
+            absence = computed.absence,
+            attendance = computed.attendance,
+            written = computed.written,
+            total = computed.total
+        )
+        if (existing == null) dao.insertGrade(grade) else dao.updateGrade(grade)
+        count++
+    }
+    GradeRowStateHolder.clear()
+    return count
 }
