@@ -19,6 +19,7 @@ import com.example.schoolmanager.ui.screens.ClassesScreen
 import com.example.schoolmanager.ui.screens.DashboardScreen
 import com.example.schoolmanager.ui.screens.StudentsScreen
 import com.example.schoolmanager.ui.screens.SubjectsScreen
+import com.example.schoolmanager.ui.screens.TeachersScreen
 import com.example.schoolmanager.ui.theme.SchoolTheme
 
 class MainActivity : ComponentActivity() {
@@ -46,7 +47,7 @@ fun AppNav() {
         composable("students") { StudentsScreen(nav) }
         composable("classes") { ClassesScreen(nav) }
         composable("subjects") { SubjectsScreen(nav) }
-        composable("teachers") { PlaceholderScreen("المعلمون") }
+        composable("teachers") { TeachersScreen(nav) }
         composable("grades") { PlaceholderScreen("الدرجات") }
         composable("reports") { PlaceholderScreen("الكشوفات والتقارير") }
         composable("settings") { PlaceholderScreen("بيانات المدرسة") }
