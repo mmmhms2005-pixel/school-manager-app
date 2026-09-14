@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.schoolmanager.ui.screens.ClassesScreen
 import com.example.schoolmanager.ui.screens.DashboardScreen
 import com.example.schoolmanager.ui.screens.StudentsScreen
+import com.example.schoolmanager.ui.screens.SubjectsScreen
 import com.example.schoolmanager.ui.theme.SchoolTheme
 
 class MainActivity : ComponentActivity() {
@@ -44,7 +45,7 @@ fun AppNav() {
         composable("dashboard") { DashboardScreen(nav) }
         composable("students") { StudentsScreen(nav) }
         composable("classes") { ClassesScreen(nav) }
-        composable("subjects") { PlaceholderScreen("المواد الدراسية") }
+        composable("subjects") { SubjectsScreen(nav) }
         composable("teachers") { PlaceholderScreen("المعلمون") }
         composable("grades") { PlaceholderScreen("الدرجات") }
         composable("reports") { PlaceholderScreen("الكشوفات والتقارير") }
