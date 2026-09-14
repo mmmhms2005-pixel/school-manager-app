@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,7 +28,6 @@ import com.example.schoolmanager.data.Student
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-// Global state holder
 object GradeRowStateHolder {
     private val map = mutableStateMapOf<String, GradeRowState>()
     fun update(studentId: String, state: GradeRowState) { map[studentId] = state }
@@ -227,7 +227,6 @@ fun GradesScreen(nav: NavController) {
                     }
                 }
             } else {
-                // Save button at top
                 Button(
                     onClick = {
                         scope.launch {
@@ -245,7 +244,6 @@ fun GradesScreen(nav: NavController) {
 
                 Card(Modifier.weight(1f)) {
                     Column(Modifier.fillMaxSize()) {
-                        // Header
                         Row(
                             Modifier.fillMaxWidth()
                                 .horizontalScroll(rememberScrollState())
@@ -302,16 +300,16 @@ private fun GradeRow(student: Student, period: Int, existing: Grade?) {
     val isExam = GradeCalculator.isExam(period)
 
     var homework by remember(student.id, period) {
-        mutableStateOf((existing?.homework ?: 0).toString())
+        mutableStateOf(existing?.homework?.takeIf { it > 0 }?.toString() ?: "")
     }
     var oral by remember(student.id, period) {
-        mutableStateOf((existing?.oral ?: 0).toString())
+        mutableStateOf(existing?.oral?.takeIf { it > 0 }?.toString() ?: "")
     }
     var absence by remember(student.id, period) {
-        mutableStateOf((existing?.absence ?: 0).toString())
+        mutableStateOf(existing?.absence?.takeIf { it > 0 }?.toString() ?: "")
     }
     var written by remember(student.id, period) {
-        mutableStateOf((existing?.written ?: 0).toString())
+        mutableStateOf(existing?.written?.takeIf { it > 0 }?.toString() ?: "")
     }
 
     LaunchedEffect(homework, oral, absence, written) {
@@ -345,20 +343,20 @@ private fun GradeRow(student: Student, period: Int, existing: Grade?) {
             Text(student.name, fontSize = 11.sp, maxLines = 1)
         }
         if (isExam) {
-            NumberInput(written, { written = it }, 75.dp, 30)
+            NumberInput(written, { written = it }, 75.dp, 30, ImeAction.Done)
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.error)
             }
         } else {
-            NumberInput(homework, { homework = it }, 70.dp, 20)
-            NumberInput(oral, { oral = it }, 70.dp, 20)
-            NumberInput(absence, { absence = it }, 55.dp, 20)
+            NumberInput(homework, { homework = it }, 70.dp, 20, ImeAction.Next)
+            NumberInput(oral, { oral = it }, 70.dp, 20, ImeAction.Next)
+            NumberInput(absence, { absence = it }, 55.dp, 20, ImeAction.Next)
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.attendance}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary)
             }
-            NumberInput(written, { written = it }, 75.dp, 40)
+            NumberInput(written, { written = it }, 75.dp, 40, ImeAction.Done)
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.error)
@@ -372,7 +370,8 @@ private fun NumberInput(
     value: String,
     onValueChange: (String) -> Unit,
     width: androidx.compose.ui.unit.Dp,
-    max: Int
+    max: Int,
+    imeAction: ImeAction
 ) {
     OutlinedTextField(
         value = value,
@@ -386,7 +385,10 @@ private fun NumberInput(
         textStyle = LocalTextStyle.current.copy(
             fontSize = 12.sp, textAlign = TextAlign.Center
         ),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Number,
+            imeAction = imeAction
+        )
     )
 }
 
@@ -421,4 +423,5 @@ private suspend fun saveAllGrades(
         )
         if (existing == null) dao.insertGrade(grade) else dao.updateGrade(grade)
     }
+    GradeRowStateHolder.clear()
 }
