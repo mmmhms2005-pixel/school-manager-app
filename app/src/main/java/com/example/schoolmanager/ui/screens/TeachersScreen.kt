@@ -29,7 +29,7 @@ import com.example.schoolmanager.data.Teacher
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TeachersScreen(nav: NavController) {
     val ctx = LocalContext.current
@@ -104,12 +104,8 @@ fun TeachersScreen(nav: NavController) {
                     items(filtered, key = { it.id }) { teacher ->
                         TeacherCard(
                             teacher = teacher,
-                            subjectNames = teacher.subjectIds
-                                .split(",").filter { it.isNotBlank() }
-                                .mapNotNull { sid -> subjects.find { it.id == sid }?.name },
-                            classNames = teacher.classIds
-                                .split(",").filter { it.isNotBlank() }
-                                .mapNotNull { cid -> classes.find { it.id == cid }?.name },
+                            subjects = subjects,
+                            classes = classes,
                             sectionNames = teacher.sectionIds
                                 .split(",").filter { it.isNotBlank() }
                                 .mapNotNull { sid -> sections.find { it.id == sid }?.name },
@@ -160,12 +156,26 @@ fun TeachersScreen(nav: NavController) {
 @Composable
 fun TeacherCard(
     teacher: Teacher,
-    subjectNames: List<String>,
-    classNames: List<String>,
+    subjects: List<Subject>,
+    classes: List<SchoolClass>,
     sectionNames: List<String>,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val bySubject = remember(teacher.assignments, subjects, classes) {
+        val map = mutableMapOf<String, MutableList<String>>()
+        teacher.assignments.split(",").forEach { pair ->
+            val parts = pair.split(":")
+            if (parts.size == 2) {
+                val sid = parts[0].trim()
+                val cid = parts[1].trim()
+                val className = classes.find { it.id == cid }?.name ?: return@forEach
+                map.getOrPut(sid) { mutableListOf() }.add(className)
+            }
+        }
+        map
+    }
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -190,24 +200,27 @@ fun TeacherCard(
                 }
             }
 
-            if (subjectNames.isNotEmpty() || classNames.isNotEmpty()) {
+            if (bySubject.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                if (subjectNames.isNotEmpty()) {
-                    Text("📚 المواد: ${subjectNames.joinToString("، ")}",
-                        fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
-                }
-                if (classNames.isNotEmpty()) {
-                    Text("🏫 الصفوف: ${classNames.joinToString("، ")}",
-                        fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
-                }
-                if (sectionNames.isNotEmpty()) {
-                    Text("🧩 الشعب: ${sectionNames.joinToString("، ")}",
-                        fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                bySubject.forEach { (sid, classNames) ->
+                    val subjectName = subjects.find { it.id == sid }?.name ?: return@forEach
+                    Text(
+                        "📚 $subjectName: ${classNames.joinToString("، ")}",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(vertical = 1.dp)
+                    )
                 }
             }
 
+            if (sectionNames.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text("🧩 الشعب: ${sectionNames.joinToString("، ")}",
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+            }
+
             if (teacher.notes.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
                 Text("📝 ${teacher.notes}", fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.secondary)
             }
@@ -215,7 +228,7 @@ fun TeacherCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TeacherDialog(
     teacher: Teacher?,
@@ -229,14 +242,14 @@ fun TeacherDialog(
     var phone by remember { mutableStateOf(teacher?.phone ?: "") }
     var specialization by remember { mutableStateOf(teacher?.specialization ?: "") }
     var notes by remember { mutableStateOf(teacher?.notes ?: "") }
-    var selectedSubjects by remember {
-        mutableStateOf(teacher?.subjectIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList())
-    }
-    var selectedClasses by remember {
-        mutableStateOf(teacher?.classIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList())
-    }
     var selectedSections by remember {
         mutableStateOf(teacher?.sectionIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList())
+    }
+
+    var assignments by remember {
+        mutableStateOf<Map<String, Set<String>>>(
+            parseAssignments(teacher?.assignments ?: "")
+        )
     }
 
     AlertDialog(
@@ -244,7 +257,10 @@ fun TeacherDialog(
         title = { Text(if (teacher == null) "إضافة معلم" else "تعديل المعلم") },
         text = {
             Column(
-                Modifier.fillMaxWidth().padding(4.dp).verticalScroll(rememberScrollState())
+                Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
                 OutlinedTextField(
                     value = name,
@@ -280,48 +296,73 @@ fun TeacherDialog(
                 )
 
                 if (subjects.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
-                    Text("📚 المواد:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    subjects.forEach { s ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = s.id in selectedSubjects,
-                                onCheckedChange = { checked ->
-                                    selectedSubjects = if (checked) selectedSubjects + s.id
-                                    else selectedSubjects - s.id
-                                }
-                            )
-                            Text(s.name, fontSize = 14.sp)
-                        }
-                    }
-                }
+                    Spacer(Modifier.height(16.dp))
+                    Text("📚 المواد والصفوف التي يدرّسها:",
+                        fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text("اختر المادة، ثم الصفوف التي يدرّسها فيها.",
+                        fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
 
-                if (classes.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
-                    Text("🏫 الصفوف:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    classes.sortedBy { it.order }.forEach { c ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = c.id in selectedClasses,
-                                onCheckedChange = { checked ->
-                                    selectedClasses = if (checked) selectedClasses + c.id
-                                    else selectedClasses - c.id
-                                }
+                    subjects.forEach { subject ->
+                        val selectedClasses = assignments[subject.id] ?: emptySet()
+                        val isSelected = selectedClasses.isNotEmpty()
+
+                        Card(
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surface
                             )
-                            Text(c.name, fontSize = 14.sp)
+                        ) {
+                            Column(Modifier.padding(8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { checked ->
+                                            assignments = if (checked) {
+                                                assignments + (subject.id to emptySet<String>())
+                                            } else {
+                                                assignments - subject.id
+                                            }
+                                        }
+                                    )
+                                    Text(subject.name, fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp)
+                                }
+
+                                if (isSelected) {
+                                    Spacer(Modifier.height(6.dp))
+                                    FlowRow(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        classes.sortedBy { it.order }.forEach { cls ->
+                                            val classSelected = selectedClasses.contains(cls.id)
+                                            FilterChip(
+                                                selected = classSelected,
+                                                onClick = {
+                                                    val newSet = if (classSelected)
+                                                        selectedClasses - cls.id
+                                                    else
+                                                        selectedClasses + cls.id
+                                                    assignments = assignments + (subject.id to newSet)
+                                                },
+                                                label = { Text(cls.name, fontSize = 11.sp) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
                 if (sections.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
-                    Text("🧩 الشعب:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Spacer(Modifier.height(16.dp))
+                    Text("🧩 الشعب:",
+                        fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     sections.forEach { s ->
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -330,8 +371,10 @@ fun TeacherDialog(
                             Checkbox(
                                 checked = s.id in selectedSections,
                                 onCheckedChange = { checked ->
-                                    selectedSections = if (checked) selectedSections + s.id
-                                    else selectedSections - s.id
+                                    selectedSections = if (checked)
+                                        selectedSections + s.id
+                                    else
+                                        selectedSections - s.id
                                 }
                             )
                             Text(s.name, fontSize = 14.sp)
@@ -344,15 +387,18 @@ fun TeacherDialog(
             TextButton(
                 enabled = name.isNotBlank(),
                 onClick = {
+                    val assignmentsStr = assignments.flatMap { (sid, cids) ->
+                        cids.map { cid -> "$sid:$cid" }
+                    }.joinToString(",")
+
                     onSave(Teacher(
                         id = teacher?.id ?: UUID.randomUUID().toString(),
                         name = name.trim(),
                         phone = phone.trim(),
                         specialization = specialization.trim(),
                         notes = notes.trim(),
-                        subjectIds = selectedSubjects.joinToString(","),
-                        classIds = selectedClasses.joinToString(","),
-                        sectionIds = selectedSections.joinToString(",")
+                        sectionIds = selectedSections.joinToString(","),
+                        assignments = assignmentsStr
                     ))
                 }
             ) { Text("حفظ") }
@@ -361,4 +407,19 @@ fun TeacherDialog(
             TextButton(onClick = onDismiss) { Text("إلغاء") }
         }
     )
+}
+
+private fun parseAssignments(raw: String): Map<String, Set<String>> {
+    val map = mutableMapOf<String, MutableSet<String>>()
+    raw.split(",").forEach { pair ->
+        val parts = pair.split(":")
+        if (parts.size == 2) {
+            val sid = parts[0].trim()
+            val cid = parts[1].trim()
+            if (sid.isNotBlank() && cid.isNotBlank()) {
+                map.getOrPut(sid) { mutableSetOf() }.add(cid)
+            }
+        }
+    }
+    return map
 }
