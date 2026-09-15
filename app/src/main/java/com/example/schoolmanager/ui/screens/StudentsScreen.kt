@@ -123,7 +123,11 @@ fun StudentsScreen(nav: NavController) {
                     }
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // ★ contentPadding لإبعاد القائمة عن الزر العائم
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 90.dp)
+                ) {
                     items(filtered, key = { it.id }) { student ->
                         StudentCard(
                             student = student,
@@ -243,6 +247,13 @@ fun StudentDialog(
     var classExpanded by remember { mutableStateOf(false) }
     var sectionExpanded by remember { mutableStateOf(false) }
 
+    // الشعب المتاحة للصف المختار فقط
+    val allowedSections = remember(classId, classes, sections) {
+        val cls = classes.find { it.id == classId }
+        val ids = cls?.sectionIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+        sections.filter { it.id in ids }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (student == null) "إضافة طالب" else "تعديل بيانات الطالب") },
@@ -281,7 +292,11 @@ fun StudentDialog(
                         classes.forEach { c ->
                             DropdownMenuItem(
                                 text = { Text(c.name) },
-                                onClick = { classId = c.id; classExpanded = false }
+                                onClick = {
+                                    classId = c.id
+                                    sectionId = ""
+                                    classExpanded = false
+                                }
                             )
                         }
                     }
@@ -304,7 +319,7 @@ fun StudentDialog(
                             text = { Text("بدون شعبة") },
                             onClick = { sectionId = ""; sectionExpanded = false }
                         )
-                        sections.forEach { s ->
+                        allowedSections.forEach { s ->
                             DropdownMenuItem(
                                 text = { Text(s.name) },
                                 onClick = { sectionId = s.id; sectionExpanded = false }
@@ -356,7 +371,6 @@ fun StudentDialog(
     )
 }
 
-// ★ حوار الإضافة الجماعية
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BulkStudentsDialog(
@@ -377,6 +391,12 @@ fun BulkStudentsDialog(
 
     val nameLines = bulkText.split("\n").map { it.trim() }.filter { it.isNotBlank() }
 
+    val allowedSections = remember(classId, classes, sections) {
+        val cls = classes.find { it.id == classId }
+        val ids = cls?.sectionIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+        sections.filter { it.id in ids }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("📋 إضافة عدة طلاب") },
@@ -390,7 +410,6 @@ fun BulkStudentsDialog(
                 )
                 Spacer(Modifier.height(10.dp))
 
-                // الصف
                 ExposedDropdownMenuBox(
                     expanded = classExpanded,
                     onExpandedChange = { classExpanded = !classExpanded }
@@ -405,14 +424,13 @@ fun BulkStudentsDialog(
                         classes.forEach { c ->
                             DropdownMenuItem(
                                 text = { Text(c.name) },
-                                onClick = { classId = c.id; classExpanded = false }
+                                onClick = { classId = c.id; sectionId = ""; classExpanded = false }
                             )
                         }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
 
-                // الشعبة
                 ExposedDropdownMenuBox(
                     expanded = sectionExpanded,
                     onExpandedChange = { sectionExpanded = !sectionExpanded }
@@ -428,7 +446,7 @@ fun BulkStudentsDialog(
                             text = { Text("بدون شعبة") },
                             onClick = { sectionId = ""; sectionExpanded = false }
                         )
-                        sections.forEach { s ->
+                        allowedSections.forEach { s ->
                             DropdownMenuItem(
                                 text = { Text(s.name) },
                                 onClick = { sectionId = s.id; sectionExpanded = false }
@@ -510,7 +528,6 @@ fun BulkStudentsDialog(
     )
 }
 
-// ★ توليد الرقم التالي
 private fun generateNextNumber(existing: List<Student>): String {
     val numbers = existing.mapNotNull { it.number.toIntOrNull() }
     val max = numbers.maxOrNull() ?: 0
