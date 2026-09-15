@@ -270,29 +270,32 @@ fun AnnualGradesReportScreen(
                 scope.launch {
                     try {
                         val rows = buildAnnualGradesRows(filteredStudents, allGrades, subjectId, period)
-                        val cols = if (isExam) {
-                            listOf(
+                        val cols: List<PdfGenerator.Column>
+                        val redCols: Set<Int>
+                        if (isExam) {
+                            cols = listOf(
                                 PdfGenerator.Column("#", 0.06f),
                                 PdfGenerator.Column("رقم الطالب", 0.14f),
                                 PdfGenerator.Column("اسم الطالب", 0.40f),
-                                PdfGenerator.Column("تحريري/30", 0.20f),
-                                PdfGenerator.Column("المجموع/30", 0.20f)
+                                PdfGenerator.Column("تحريري", 0.20f),
+                                PdfGenerator.Column("المجموع", 0.20f)
                             )
+                            redCols = setOf(4)
                         } else {
-                            listOf(
+                            cols = listOf(
                                 PdfGenerator.Column("#", 0.05f),
                                 PdfGenerator.Column("رقم الطالب", 0.11f),
                                 PdfGenerator.Column("اسم الطالب", 0.28f),
-                                PdfGenerator.Column("واجب/20", 0.10f),
-                                PdfGenerator.Column("شفهي/20", 0.10f),
+                                PdfGenerator.Column("واجب", 0.10f),
+                                PdfGenerator.Column("شفهي", 0.10f),
                                 PdfGenerator.Column("غياب", 0.07f),
                                 PdfGenerator.Column("مواظبة", 0.08f),
-                                PdfGenerator.Column("تحريري/40", 0.10f),
+                                PdfGenerator.Column("تحريري", 0.10f),
                                 PdfGenerator.Column("المجموع", 0.11f)
                             )
+                            redCols = setOf(8)
                         }
 
-                        // ★ البحث عن معلم المادة
                         val selectedTeacher = allTeachers.firstOrNull { t ->
                             t.subjectIds.split(",").any { it.trim() == subjectId }
                         }
@@ -301,7 +304,8 @@ fun AnnualGradesReportScreen(
                             schoolName = settings?.schoolName ?: "",
                             academicYear = settings?.academicYear ?: "",
                             principalName = settings?.principalName ?: "",
-                            teacherName = selectedTeacher?.name ?: ""
+                            teacherName = selectedTeacher?.name ?: "",
+                            logoBase64 = settings?.logoBase64 ?: ""
                         )
 
                         val reportData = PdfGenerator.ReportData(
@@ -313,7 +317,8 @@ fun AnnualGradesReportScreen(
                             },
                             columns = cols,
                             rows = rows,
-                            isLandscape = false
+                            isLandscape = false,
+                            redColumnIndices = redCols
                         )
 
                         val file = withContext(Dispatchers.IO) {
