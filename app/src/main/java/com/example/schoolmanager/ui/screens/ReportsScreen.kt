@@ -104,6 +104,10 @@ fun ReportsScreen(nav: NavController) {
                         dao = dao, scope = scope,
                         snackbar = snackbarHostState
                     )
+                    "class_report" -> ClassReportScreen(
+                        dao = dao, scope = scope,
+                        snackbar = snackbarHostState
+                    )
                     else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("🚧", fontSize = 56.sp)
