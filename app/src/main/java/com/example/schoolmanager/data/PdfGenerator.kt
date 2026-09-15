@@ -89,17 +89,17 @@ object PdfGenerator {
         school: SchoolInfo
     ) {
         canvas.drawColor(Color.WHITE)
-        var y = MARGIN + 5f
+        var y = MARGIN + 3f
 
         val centerX = pageWidth / 2f
 
-        // ===== 1) الشعار (في المنتصف، بحجم موحّد) =====
+        // ===== 1) الشعار (في المنتصف تماماً) =====
         if (school.logoBase64.isNotBlank()) {
             try {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 if (bitmap != null) {
-                    val maxLogoSize = 55f
+                    val maxLogoSize = 50f
                     val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val logoW: Float
                     val logoH: Float
@@ -113,7 +113,7 @@ object PdfGenerator {
                     val left = centerX - logoW / 2f
                     val destRect = RectF(left, y, left + logoW, y + logoH)
                     canvas.drawBitmap(bitmap, null, destRect, null)
-                    y += logoH + 10f
+                    y += logoH + 6f
                 }
             } catch (e: Exception) {
                 // تجاهل أخطاء الشعار
@@ -134,7 +134,7 @@ object PdfGenerator {
             y + FONT_SCHOOL,
             schoolPaint
         )
-        y += FONT_SCHOOL + 8f
+        y += FONT_SCHOOL + 3f
 
         // ===== 3) العام الدراسي (في المنتصف) =====
         if (school.academicYear.isNotBlank()) {
@@ -144,7 +144,7 @@ object PdfGenerator {
                 textAlign = Paint.Align.CENTER
             }
             drawCenteredText(canvas, school.academicYear, centerX, y + FONT_YEAR, yearPaint)
-            y += FONT_YEAR + 8f
+            y += FONT_YEAR + 4f
         }
 
         // خط فاصل
@@ -153,7 +153,7 @@ object PdfGenerator {
             strokeWidth = 1.5f
         }
         canvas.drawLine(MARGIN, y, pageWidth - MARGIN, y, linePaint)
-        y += 8
+        y += 7
 
         // ===== عنوان التقرير + المعلومات =====
         val titlePaint = TextPaint().apply {
