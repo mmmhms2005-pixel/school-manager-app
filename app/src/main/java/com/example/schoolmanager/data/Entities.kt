@@ -43,9 +43,8 @@ data class Teacher(
     val phone: String,
     val specialization: String,
     val notes: String,
-    val subjectIds: String,
-    val classIds: String,
-    val sectionIds: String
+    val sectionIds: String,
+    val assignments: String  // "subId:classId,subId:classId"
 )
 
 @Entity(tableName = "grades")
