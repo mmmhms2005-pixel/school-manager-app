@@ -3,6 +3,8 @@ package com.example.schoolmanager.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -41,6 +43,7 @@ fun StudentsScreen(nav: NavController) {
     var search by remember { mutableStateOf("") }
     var filterClass by remember { mutableStateOf("") }
     var showDialog by remember { mutableStateOf(false) }
+    var showBulkDialog by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Student?>(null) }
     var deleting by remember { mutableStateOf<Student?>(null) }
 
@@ -58,10 +61,16 @@ fun StudentsScreen(nav: NavController) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "رجوع")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showBulkDialog = true }) {
+                        Text("📋+", fontSize = 18.sp)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
@@ -134,6 +143,7 @@ fun StudentsScreen(nav: NavController) {
             student = editing,
             classes = classes,
             sections = sections,
+            existingStudents = students,
             onDismiss = { showDialog = false },
             onSave = { s ->
                 scope.launch {
@@ -141,6 +151,21 @@ fun StudentsScreen(nav: NavController) {
                     else dao.updateStudent(s)
                 }
                 showDialog = false
+            }
+        )
+    }
+
+    if (showBulkDialog) {
+        BulkStudentsDialog(
+            classes = classes,
+            sections = sections,
+            existingStudents = students,
+            onDismiss = { showBulkDialog = false },
+            onSave = { newStudents ->
+                scope.launch {
+                    newStudents.forEach { dao.insertStudent(it) }
+                }
+                showBulkDialog = false
             }
         )
     }
@@ -204,6 +229,7 @@ fun StudentDialog(
     student: Student?,
     classes: List<SchoolClass>,
     sections: List<Section>,
+    existingStudents: List<Student>,
     onDismiss: () -> Unit,
     onSave: (Student) -> Unit
 ) {
@@ -225,7 +251,7 @@ fun StudentDialog(
                 OutlinedTextField(
                     value = number,
                     onValueChange = { number = it },
-                    label = { Text("رقم الطالب *") },
+                    label = { Text("رقم الطالب (اتركه فارغاً للتوليد التلقائي)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -307,11 +333,14 @@ fun StudentDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = number.isNotBlank() && name.isNotBlank() && classId.isNotBlank(),
+                enabled = name.isNotBlank() && classId.isNotBlank(),
                 onClick = {
+                    val finalNumber = if (number.isBlank()) {
+                        generateNextNumber(existingStudents)
+                    } else number.trim()
                     onSave(Student(
                         id = student?.id ?: UUID.randomUUID().toString(),
-                        number = number.trim(),
+                        number = finalNumber,
                         name = name.trim(),
                         classId = classId,
                         sectionId = sectionId,
@@ -325,4 +354,165 @@ fun StudentDialog(
             TextButton(onClick = onDismiss) { Text("إلغاء") }
         }
     )
+}
+
+// ★ حوار الإضافة الجماعية
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BulkStudentsDialog(
+    classes: List<SchoolClass>,
+    sections: List<Section>,
+    existingStudents: List<Student>,
+    onDismiss: () -> Unit,
+    onSave: (List<Student>) -> Unit
+) {
+    var classId by remember { mutableStateOf("") }
+    var sectionId by remember { mutableStateOf("") }
+    var guardian by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var bulkText by remember { mutableStateOf("") }
+
+    var classExpanded by remember { mutableStateOf(false) }
+    var sectionExpanded by remember { mutableStateOf(false) }
+
+    val nameLines = bulkText.split("\n").map { it.trim() }.filter { it.isNotBlank() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("📋 إضافة عدة طلاب") },
+        text = {
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    "الصق الأسماء (كل سطر = طالب واحد). سيتم توليد رقم تسلسلي تلقائياً.",
+                    fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(Modifier.height(10.dp))
+
+                // الصف
+                ExposedDropdownMenuBox(
+                    expanded = classExpanded,
+                    onExpandedChange = { classExpanded = !classExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = classes.find { it.id == classId }?.name ?: "اختر الصف *",
+                        onValueChange = {}, readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(classExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(classExpanded, { classExpanded = false }) {
+                        classes.forEach { c ->
+                            DropdownMenuItem(
+                                text = { Text(c.name) },
+                                onClick = { classId = c.id; classExpanded = false }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+
+                // الشعبة
+                ExposedDropdownMenuBox(
+                    expanded = sectionExpanded,
+                    onExpandedChange = { sectionExpanded = !sectionExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = sections.find { it.id == sectionId }?.name ?: "بدون شعبة",
+                        onValueChange = {}, readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(sectionExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(sectionExpanded, { sectionExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text("بدون شعبة") },
+                            onClick = { sectionId = ""; sectionExpanded = false }
+                        )
+                        sections.forEach { s ->
+                            DropdownMenuItem(
+                                text = { Text(s.name) },
+                                onClick = { sectionId = s.id; sectionExpanded = false }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = guardian,
+                    onValueChange = { guardian = it },
+                    label = { Text("ولي الأمر (اختياري - للجميع)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("رقم الهاتف (اختياري - للجميع)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = bulkText,
+                    onValueChange = { bulkText = it },
+                    label = { Text("الأسماء (كل سطر = طالب)") },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp),
+                    minLines = 8
+                )
+
+                Spacer(Modifier.height(8.dp))
+                if (nameLines.isNotEmpty()) {
+                    Card(Modifier.fillMaxWidth()) {
+                        Text(
+                            "✅ سيتم إضافة ${nameLines.size} طالب",
+                            Modifier.padding(10.dp),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = classId.isNotBlank() && nameLines.isNotEmpty(),
+                onClick = {
+                    var nextNum = generateNextNumber(existingStudents).toIntOrNull() ?: 1
+                    val usedNumbers = existingStudents.map { it.number }.toMutableSet()
+                    val newStudents = nameLines.map { line ->
+                        while (usedNumbers.contains(nextNum.toString())) nextNum++
+                        val num = nextNum.toString()
+                        usedNumbers.add(num)
+                        nextNum++
+                        Student(
+                            id = UUID.randomUUID().toString(),
+                            number = num,
+                            name = line,
+                            classId = classId,
+                            sectionId = sectionId,
+                            guardian = guardian.trim(),
+                            phone = phone.trim()
+                        )
+                    }
+                    onSave(newStudents)
+                }
+            ) { Text("إضافة الكل") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("إلغاء") }
+        }
+    )
+}
+
+// ★ توليد الرقم التالي
+private fun generateNextNumber(existing: List<Student>): String {
+    val numbers = existing.mapNotNull { it.number.toIntOrNull() }
+    val max = numbers.maxOrNull() ?: 0
+    return (max + 1).toString()
 }
