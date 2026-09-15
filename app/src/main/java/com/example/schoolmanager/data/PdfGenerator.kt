@@ -91,13 +91,15 @@ object PdfGenerator {
         canvas.drawColor(Color.WHITE)
         var y = MARGIN
 
-        // ===== الشعار (أعلى يسار الصفحة) =====
+        val centerX = pageWidth / 2f
+
+        // ===== 1) الشعار في المنتصف =====
         if (school.logoBase64.isNotBlank()) {
             try {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 if (bitmap != null) {
-                    val maxLogoSize = 55f
+                    val maxLogoSize = 60f
                     val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val logoW: Float
                     val logoH: Float
@@ -108,15 +110,17 @@ object PdfGenerator {
                         logoW = maxLogoSize * ratio
                         logoH = maxLogoSize
                     }
-                    val destRect = RectF(MARGIN, y, MARGIN + logoW, y + logoH)
+                    val left = centerX - logoW / 2f
+                    val destRect = RectF(left, y, left + logoW, y + logoH)
                     canvas.drawBitmap(bitmap, null, destRect, null)
+                    y += logoH + 6
                 }
             } catch (e: Exception) {
                 // تجاهل أخطاء الشعار
             }
         }
 
-        // ===== اسم المدرسة =====
+        // ===== 2) اسم المدرسة (في المنتصف) =====
         val schoolPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_SCHOOL
@@ -126,20 +130,20 @@ object PdfGenerator {
         drawCenteredText(
             canvas,
             school.schoolName.ifBlank { "اسم المدرسة" },
-            pageWidth / 2f,
+            centerX,
             y + FONT_SCHOOL,
             schoolPaint
         )
         y += FONT_SCHOOL + 4
 
-        // ===== العام الدراسي =====
+        // ===== 3) العام الدراسي (في المنتصف) =====
         val yearPaint = TextPaint().apply {
             color = Color.DKGRAY
             textSize = FONT_YEAR
             textAlign = Paint.Align.CENTER
         }
         if (school.academicYear.isNotBlank()) {
-            drawCenteredText(canvas, school.academicYear, pageWidth / 2f, y + FONT_YEAR, yearPaint)
+            drawCenteredText(canvas, school.academicYear, centerX, y + FONT_YEAR, yearPaint)
             y += FONT_YEAR + 4
         }
 
