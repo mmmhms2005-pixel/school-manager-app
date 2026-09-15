@@ -19,6 +19,7 @@ import com.example.schoolmanager.ui.screens.ClassesScreen
 import com.example.schoolmanager.ui.screens.DashboardScreen
 import com.example.schoolmanager.ui.screens.GradesScreen
 import com.example.schoolmanager.ui.screens.ReportsScreen
+import com.example.schoolmanager.ui.screens.SettingsScreen
 import com.example.schoolmanager.ui.screens.StudentsScreen
 import com.example.schoolmanager.ui.screens.SubjectsScreen
 import com.example.schoolmanager.ui.screens.TeachersScreen
@@ -52,7 +53,7 @@ fun AppNav() {
         composable("teachers") { TeachersScreen(nav) }
         composable("grades") { GradesScreen(nav) }
         composable("reports") { ReportsScreen(nav) }
-        composable("settings") { PlaceholderScreen("بيانات المدرسة") }
+        composable("settings") { SettingsScreen(nav) }
     }
 }
 
