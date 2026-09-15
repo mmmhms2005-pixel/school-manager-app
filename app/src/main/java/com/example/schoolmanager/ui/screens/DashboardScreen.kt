@@ -36,8 +36,8 @@ fun DashboardScreen(nav: NavController) {
         NavItem("subjects", "المواد الدراسية", "📚", "إدارة المواد"),
         NavItem("teachers", "المعلمون", "👨‍🏫", "إدارة المعلمين"),
         NavItem("grades", "الدرجات", "📝", "إدخال وإدارة الدرجات"),
-        NavItem("reports", "الكشوفات والتقارير", "📋", "إصدار التقارير"),
-        NavItem("settings", "بيانات المدرسة", "⚙️", "إعدادات المدرسة")
+        NavItem("reports", "الكشوفات والتقارير", "📑", "إصدار التقارير"),
+        NavItem("settings", "بيانات المدرسة", "📋", "إعدادات المدرسة")
     )
 
     Scaffold(
