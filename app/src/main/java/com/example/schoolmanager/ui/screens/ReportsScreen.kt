@@ -48,10 +48,10 @@ fun ReportsScreen(nav: NavController) {
 
     val reports = listOf(
         ReportTile("annual_grades", "كشف درجات أعمال السنة", "📄", "لكل طالب في مادة وفترة"),
-        ReportTile("student_report", "كشف الطالب الفردي", "👤", "جميع الفترات لطالب واحد"),
-        ReportTile("class_report", "الكشف الشامل للصف", "👥", "ملخص كل الطلاب في مادة"),
-        ReportTile("detail_report", "كشف درجات الصف التفصيلي", "📋", "تفاصيل درجات صف في فترة"),
-        ReportTile("official_report", "التقرير الرسمي الشامل", "📜", "تقرير رسمي متكامل لطالب"),
+        ReportTile("student_report", "كشف الطالب الشامل", "👤", "كل المواد لطالب في فترة"),
+        ReportTile("student_periods", "كشف الطالب عبر الفترات", "📅", "طالب × مادة × 8 فترات"),
+        ReportTile("class_report", "الكشف الشامل للصف", "👥", "كل الطلاب × كل الفترات"),
+        ReportTile("final_results", "النتيجة النهائية والترتيب", "🏆", "النتيجة /100 + الأوائل"),
         ReportTile("analytics", "لوحة الإحصائيات", "📊", "تحليل درجات الصف")
     )
 
@@ -159,8 +159,10 @@ fun AnnualGradesReportScreen(
     var periodExpanded by remember { mutableStateOf(false) }
 
     val availableSubjects = subjects.filter {
-        it.classIds.isBlank() || it.classIds.split(",").contains(classId)
-    }
+        it.classIds.isBlank() ||
+        it.classIds.split(",").map { s -> s.trim() }.contains(classId)
+    }.ifEmpty { subjects }
+
     val filteredStudents = students.filter { s ->
         (classId.isBlank() || s.classId == classId) &&
         (sectionId.isBlank() || s.sectionId == sectionId)
@@ -185,7 +187,7 @@ fun AnnualGradesReportScreen(
                         classes.forEach { c ->
                             DropdownMenuItem(
                                 text = { Text(c.name) },
-                                onClick = { classId = c.id; sectionId = ""; classExpanded = false }
+                                onClick = { classId = c.id; sectionId = ""; subjectId = ""; classExpanded = false }
                             )
                         }
                     }
@@ -297,7 +299,9 @@ fun AnnualGradesReportScreen(
                         }
 
                         val selectedTeacher = allTeachers.firstOrNull { t ->
-                            t.subjectIds.split(",").any { it.trim() == subjectId }
+                            t.assignments.split(",")
+                                .map { it.trim() }
+                                .contains("$subjectId:$classId")
                         }
 
                         val schoolInfo = PdfGenerator.SchoolInfo(
