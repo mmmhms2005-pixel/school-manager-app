@@ -112,11 +112,15 @@ fun ReportsScreen(nav: NavController) {
                         dao = dao, scope = scope,
                         snackbar = snackbarHostState
                     )
+                    "analytics" -> AnalyticsScreen(
+                        dao = dao, scope = scope,
+                        snackbar = snackbarHostState
+                    )
                     else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("🚧", fontSize = 56.sp)
                             Spacer(Modifier.height(8.dp))
-                            Text("قيد التطوير — سيُضاف قريباً", fontSize = 14.sp)
+                            Text("قيد التطوير", fontSize = 14.sp)
                         }
                     }
                 }
