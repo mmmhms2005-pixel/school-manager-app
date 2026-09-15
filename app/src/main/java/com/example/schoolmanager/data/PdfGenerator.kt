@@ -1,14 +1,17 @@
 package com.example.schoolmanager.data
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
+import android.util.Base64
 import java.io.File
 import java.io.FileOutputStream
 
@@ -34,7 +37,7 @@ object PdfGenerator {
         val academicYear: String = "",
         val principalName: String = "",
         val teacherName: String = "",
-        val logoPath: String = ""
+        val logoBase64: String = ""
     )
 
     data class Column(
@@ -47,7 +50,8 @@ object PdfGenerator {
         val meta: String,
         val columns: List<Column>,
         val rows: List<List<String>>,
-        val isLandscape: Boolean = false
+        val isLandscape: Boolean = false,
+        val redColumnIndices: Set<Int> = emptySet()
     )
 
     fun generate(
@@ -87,16 +91,48 @@ object PdfGenerator {
         canvas.drawColor(Color.WHITE)
         var y = MARGIN
 
-        // ===== الترويسة =====
+        // ===== الشعار (أعلى يسار الصفحة) =====
+        if (school.logoBase64.isNotBlank()) {
+            try {
+                val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                if (bitmap != null) {
+                    val maxLogoSize = 55f
+                    val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                    val logoW: Float
+                    val logoH: Float
+                    if (bitmap.width > bitmap.height) {
+                        logoW = maxLogoSize
+                        logoH = maxLogoSize / ratio
+                    } else {
+                        logoW = maxLogoSize * ratio
+                        logoH = maxLogoSize
+                    }
+                    val destRect = RectF(MARGIN, y, MARGIN + logoW, y + logoH)
+                    canvas.drawBitmap(bitmap, null, destRect, null)
+                }
+            } catch (e: Exception) {
+                // تجاهل أخطاء الشعار
+            }
+        }
+
+        // ===== اسم المدرسة =====
         val schoolPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_SCHOOL
             textAlign = Paint.Align.CENTER
             isFakeBoldText = true
         }
-        drawCenteredText(canvas, school.schoolName.ifBlank { "اسم المدرسة" }, pageWidth / 2f, y + FONT_SCHOOL, schoolPaint)
+        drawCenteredText(
+            canvas,
+            school.schoolName.ifBlank { "اسم المدرسة" },
+            pageWidth / 2f,
+            y + FONT_SCHOOL,
+            schoolPaint
+        )
         y += FONT_SCHOOL + 4
 
+        // ===== العام الدراسي =====
         val yearPaint = TextPaint().apply {
             color = Color.DKGRAY
             textSize = FONT_YEAR
@@ -115,7 +151,7 @@ object PdfGenerator {
         canvas.drawLine(MARGIN, y, pageWidth - MARGIN, y, linePaint)
         y += 6
 
-        // عنوان التقرير (يمين) + المعلومات (يسار)
+        // ===== عنوان التقرير + المعلومات =====
         val titlePaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_TITLE
@@ -137,9 +173,8 @@ object PdfGenerator {
         val tableWidth = pageWidth - 2 * MARGIN
         val colWidths = report.columns.map { it.width * tableWidth }
 
-        // ★ الإصلاح 1: زيادة ارتفاع صف الرأس بشكل كبير (سطران)
-        val rowHeight = (FONT_TABLE_BODY + 6f)
-        val headerHeight = (FONT_TABLE_HEADER * 2.8f) + 4f  // ~29pt — يستوعب سطرين كاملين
+        val rowHeight = FONT_TABLE_BODY + 6f
+        val headerHeight = (FONT_TABLE_HEADER * 2.8f) + 4f
 
         val headerPaint = TextPaint().apply {
             color = Color.BLACK
@@ -154,7 +189,6 @@ object PdfGenerator {
             strokeWidth = 0.5f
         }
 
-        // خلفية الرأس
         canvas.drawRect(MARGIN, y, pageWidth - MARGIN, y + headerHeight, cellBgPaint)
 
         var x = pageWidth - MARGIN
@@ -167,32 +201,35 @@ object PdfGenerator {
         }
         y += headerHeight
 
-        // صفوف الجدول
         val bodyPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_TABLE_BODY
             textAlign = Paint.Align.CENTER
         }
+        val redBodyPaint = TextPaint().apply {
+            color = Color.rgb(180, 30, 30)
+            textSize = FONT_TABLE_BODY
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
+        }
+
         report.rows.forEach { row ->
             if (y + rowHeight > pageHeight - MARGIN - 60) return@forEach
             x = pageWidth - MARGIN
             row.forEachIndexed { i, cell ->
                 val colW = colWidths.getOrElse(i) { 0f }
                 val cellX = x - colW
-                drawCenteredInBox(canvas, cell, cellX, y, colW, rowHeight, bodyPaint)
+                val paint = if (i in report.redColumnIndices) redBodyPaint else bodyPaint
+                drawCenteredInBox(canvas, cell, cellX, y, colW, rowHeight, paint)
                 canvas.drawRect(cellX, y, x, y + rowHeight, borderPaint)
                 x = cellX
             }
             y += rowHeight
         }
 
-        // ===== التوقيعات =====
         drawSignatures(canvas, pageWidth, pageHeight, school)
     }
 
-    /**
-     * رسم رأس الخلية مع دعم سطرين بشكل صحيح — بدون تداخل
-     */
     private fun drawHeaderCell(
         canvas: Canvas,
         text: String,
@@ -204,23 +241,13 @@ object PdfGenerator {
     ) {
         if (text.isBlank()) return
 
-        // إذا كان النص يحتوي على "/" نفصله إلى سطرين (مثال: "واجب /20" → "واجب" + "/20")
-        val parts = text.split("/")
-        val lines = if (parts.size == 2) {
-            listOf(parts[0].trim(), "/" + parts[1].trim())
-        } else {
-            listOf(text)
-        }
-
         val linePaint = TextPaint(paint)
         val lineHeight = linePaint.textSize + 2f
-        val totalHeight = lineHeight * lines.size
+        val totalHeight = lineHeight
         val startY = boxTop + (boxHeight - totalHeight) / 2f + linePaint.textSize
 
-        lines.forEachIndexed { idx, line ->
-            linePaint.textAlign = Paint.Align.CENTER
-            canvas.drawText(line, boxLeft + boxWidth / 2f, startY + idx * lineHeight, linePaint)
-        }
+        linePaint.textAlign = Paint.Align.CENTER
+        canvas.drawText(text, boxLeft + boxWidth / 2f, startY, linePaint)
     }
 
     private fun drawSignatures(canvas: Canvas, pageWidth: Int, pageHeight: Int, school: SchoolInfo) {
