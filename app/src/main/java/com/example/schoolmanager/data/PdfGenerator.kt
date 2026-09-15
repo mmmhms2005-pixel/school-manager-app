@@ -7,10 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
-import android.text.Layout
-import android.text.StaticLayout
 import android.text.TextPaint
-import android.text.TextUtils
 import android.util.Base64
 import java.io.File
 import java.io.FileOutputStream
@@ -89,7 +86,7 @@ object PdfGenerator {
         school: SchoolInfo
     ) {
         canvas.drawColor(Color.WHITE)
-        var y = MARGIN + 3f
+        var y = MARGIN + 5f
 
         val centerX = pageWidth / 2f
 
@@ -99,7 +96,7 @@ object PdfGenerator {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 if (bitmap != null) {
-                    val maxLogoSize = 50f
+                    val maxLogoSize = 55f
                     val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val logoW: Float
                     val logoH: Float
@@ -113,18 +110,17 @@ object PdfGenerator {
                     val left = centerX - logoW / 2f
                     val destRect = RectF(left, y, left + logoW, y + logoH)
                     canvas.drawBitmap(bitmap, null, destRect, null)
-                    y += logoH + 6f
+                    y += logoH + 10f
                 }
             } catch (e: Exception) {
-                // تجاهل أخطاء الشعار
+                // تجاهل
             }
         }
 
-        // ===== 2) اسم المدرسة (في المنتصف) =====
+        // ===== 2) اسم المدرسة (في المنتصف تماماً) =====
         val schoolPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_SCHOOL
-            textAlign = Paint.Align.CENTER
             isFakeBoldText = true
         }
         drawCenteredText(
@@ -134,17 +130,16 @@ object PdfGenerator {
             y + FONT_SCHOOL,
             schoolPaint
         )
-        y += FONT_SCHOOL + 3f
+        y += FONT_SCHOOL + 5f
 
-        // ===== 3) العام الدراسي (في المنتصف) =====
+        // ===== 3) العام الدراسي (في المنتصف تماماً) =====
         if (school.academicYear.isNotBlank()) {
             val yearPaint = TextPaint().apply {
                 color = Color.DKGRAY
                 textSize = FONT_YEAR
-                textAlign = Paint.Align.CENTER
             }
             drawCenteredText(canvas, school.academicYear, centerX, y + FONT_YEAR, yearPaint)
-            y += FONT_YEAR + 4f
+            y += FONT_YEAR + 6f
         }
 
         // خط فاصل
@@ -153,7 +148,7 @@ object PdfGenerator {
             strokeWidth = 1.5f
         }
         canvas.drawLine(MARGIN, y, pageWidth - MARGIN, y, linePaint)
-        y += 7
+        y += 10
 
         // ===== عنوان التقرير + المعلومات =====
         val titlePaint = TextPaint().apply {
@@ -288,18 +283,22 @@ object PdfGenerator {
         }
     }
 
-    private fun drawCenteredText(canvas: Canvas, text: String, centerX: Float, baselineY: Float, paint: TextPaint) {
-        val layout = StaticLayout.Builder
-            .obtain(text, 0, text.length, paint, (centerX * 2).toInt())
-            .setAlignment(Layout.Alignment.ALIGN_CENTER)
-            .setIncludePad(false)
-            .setMaxLines(1)
-            .setEllipsize(TextUtils.TruncateAt.END)
-            .build()
-        canvas.save()
-        canvas.translate(centerX - layout.width / 2f, baselineY - layout.height)
-        layout.draw(canvas)
-        canvas.restore()
+    /**
+     * رسم النص في المنتصف تماماً — يقيس العرض الفعلي للنص ثم يضعه في المنتصف.
+     * هذا يحل مشكلة عدم توسيط النص العربي بشكل دقيق.
+     */
+    private fun drawCenteredText(
+        canvas: Canvas,
+        text: String,
+        centerX: Float,
+        baselineY: Float,
+        paint: TextPaint
+    ) {
+        val width = paint.measureText(text)
+        val oldAlign = paint.textAlign
+        paint.textAlign = Paint.Align.LEFT
+        canvas.drawText(text, centerX - width / 2f, baselineY, paint)
+        paint.textAlign = oldAlign
     }
 
     private fun drawCenteredInBox(
@@ -312,18 +311,10 @@ object PdfGenerator {
         paint: TextPaint
     ) {
         if (text.isBlank()) return
-        val layout = StaticLayout.Builder
-            .obtain(text, 0, text.length, paint, boxWidth.toInt().coerceAtLeast(1))
-            .setAlignment(Layout.Alignment.ALIGN_CENTER)
-            .setIncludePad(false)
-            .setMaxLines(1)
-            .setEllipsize(TextUtils.TruncateAt.END)
-            .build()
-        canvas.save()
-        val x = boxLeft + (boxWidth - layout.width) / 2f
-        val y = boxTop + (boxHeight - layout.height) / 2f
-        canvas.translate(x, y)
-        layout.draw(canvas)
-        canvas.restore()
+        val oldAlign = paint.textAlign
+        paint.textAlign = Paint.Align.CENTER
+        val baselineY = boxTop + boxHeight / 2f + paint.textSize / 3f
+        canvas.drawText(text, boxLeft + boxWidth / 2f, baselineY, paint)
+        paint.textAlign = oldAlign
     }
 }
