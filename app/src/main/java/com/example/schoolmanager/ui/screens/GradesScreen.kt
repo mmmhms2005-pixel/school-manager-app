@@ -28,15 +28,11 @@ import com.example.schoolmanager.data.Student
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-object GradeRowStateHolder {
-    private val map = mutableStateMapOf<String, GradeRowState>()
-    fun update(studentId: String, state: GradeRowState) { map[studentId] = state }
-    fun snapshot(): Map<String, GradeRowState> = map.toMap()
-    fun clear() = map.clear()
-}
-
 data class GradeRowState(
-    val homework: Int, val oral: Int, val absence: Int, val written: Int
+    val homework: Int = 0,
+    val oral: Int = 0,
+    val absence: Int = 0,
+    val written: Int = 0
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +59,14 @@ fun GradesScreen(nav: NavController) {
     var subjectExpanded by remember { mutableStateOf(false) }
     var periodExpanded by remember { mutableStateOf(false) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // خريطة الحالة: studentId -> GradeRowState
+    // تُعاد تهيئتها تلقائياً عند تغيير المادة أو الفترة
+    val gradeStates = remember(subjectId, period) {
+        mutableStateMapOf<String, GradeRowState>()
+    }
+
     val filteredStudents = students.filter { s ->
         (classId.isBlank() || s.classId == classId) &&
         (sectionId.isBlank() || s.sectionId == sectionId)
@@ -74,7 +78,31 @@ fun GradesScreen(nav: NavController) {
 
     val isExam = GradeCalculator.isExam(period)
 
+    // تحميل الدرجات المحفوظة من قاعدة البيانات عند تغيير المادة أو الفترة
+    LaunchedEffect(subjectId, period) {
+        if (subjectId.isNotBlank()) {
+            filteredStudents.forEach { student ->
+                val existing = allGrades.find {
+                    it.studentId == student.id &&
+                    it.subjectId == subjectId &&
+                    it.period == period
+                }
+                if (existing != null) {
+                    gradeStates[student.id] = GradeRowState(
+                        homework = existing.homework,
+                        oral = existing.oral,
+                        absence = existing.absence,
+                        written = existing.written
+                    )
+                } else {
+                    gradeStates[student.id] = GradeRowState(0, 0, 0, 0)
+                }
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("إدخال الدرجات", fontWeight = FontWeight.Bold) },
@@ -230,7 +258,28 @@ fun GradesScreen(nav: NavController) {
                 Button(
                     onClick = {
                         scope.launch {
-                            saveAllGrades(dao, filteredStudents, subjectId, period)
+                            try {
+                                val snapshot = gradeStates.toMap()
+                                if (snapshot.isEmpty()) {
+                                    snackbarHostState.showSnackbar(
+                                        message = "⚠️ لا توجد بيانات للحفظ",
+                                        duration = SnackbarDuration.Long
+                                    )
+                                    return@launch
+                                }
+                                val count = saveAllGrades(
+                                    dao, filteredStudents, subjectId, period, snapshot
+                                )
+                                snackbarHostState.showSnackbar(
+                                    message = "✅ تم حفظ درجات $count طالب بنجاح",
+                                    duration = SnackbarDuration.Long
+                                )
+                            } catch (e: Exception) {
+                                snackbarHostState.showSnackbar(
+                                    message = "❌ فشل الحفظ: ${e.message ?: "خطأ غير معروف"}",
+                                    duration = SnackbarDuration.Long
+                                )
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -268,13 +317,13 @@ fun GradesScreen(nav: NavController) {
                         Divider()
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(filteredStudents, key = { it.id }) { student ->
+                                val st = gradeStates[student.id] ?: GradeRowState(0, 0, 0, 0)
                                 GradeRow(
                                     student = student,
                                     period = period,
-                                    existing = allGrades.find {
-                                        it.studentId == student.id &&
-                                        it.subjectId == subjectId &&
-                                        it.period == period
+                                    state = st,
+                                    onStateChange = { newState ->
+                                        gradeStates[student.id] = newState
                                     }
                                 )
                                 Divider()
@@ -296,37 +345,26 @@ private fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp) {
 }
 
 @Composable
-private fun GradeRow(student: Student, period: Int, existing: Grade?) {
+private fun GradeRow(
+    student: Student,
+    period: Int,
+    state: GradeRowState,
+    onStateChange: (GradeRowState) -> Unit
+) {
     val isExam = GradeCalculator.isExam(period)
 
-    var homework by remember(student.id, period) {
-        mutableStateOf(existing?.homework?.takeIf { it > 0 }?.toString() ?: "")
-    }
-    var oral by remember(student.id, period) {
-        mutableStateOf(existing?.oral?.takeIf { it > 0 }?.toString() ?: "")
-    }
-    var absence by remember(student.id, period) {
-        mutableStateOf(existing?.absence?.takeIf { it > 0 }?.toString() ?: "")
-    }
-    var written by remember(student.id, period) {
-        mutableStateOf(existing?.written?.takeIf { it > 0 }?.toString() ?: "")
-    }
-
-    LaunchedEffect(homework, oral, absence, written) {
-        GradeRowStateHolder.update(student.id, GradeRowState(
-            homework = homework.toIntOrNull() ?: 0,
-            oral = oral.toIntOrNull() ?: 0,
-            absence = absence.toIntOrNull() ?: 0,
-            written = written.toIntOrNull() ?: 0
-        ))
-    }
+    // القيم المعروضة: فارغة إذا كانت صفر
+    val homeworkText = if (state.homework > 0) state.homework.toString() else ""
+    val oralText = if (state.oral > 0) state.oral.toString() else ""
+    val absenceText = if (state.absence > 0) state.absence.toString() else ""
+    val writtenText = if (state.written > 0) state.written.toString() else ""
 
     val computed = GradeCalculator.compute(
         period = period,
-        homework = homework.toIntOrNull() ?: 0,
-        oral = oral.toIntOrNull() ?: 0,
-        absence = absence.toIntOrNull() ?: 0,
-        written = written.toIntOrNull() ?: 0
+        homework = state.homework,
+        oral = state.oral,
+        absence = state.absence,
+        written = state.written
     )
 
     Row(
@@ -343,20 +381,50 @@ private fun GradeRow(student: Student, period: Int, existing: Grade?) {
             Text(student.name, fontSize = 11.sp, maxLines = 1)
         }
         if (isExam) {
-            NumberInput(written, { written = it }, 75.dp, 30, ImeAction.Done)
+            NumberInput(
+                value = writtenText,
+                onValueChange = { newText ->
+                    onStateChange(state.copy(written = newText.toIntOrNull() ?: 0))
+                },
+                width = 75.dp, max = 30, imeAction = ImeAction.Done
+            )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.error)
             }
         } else {
-            NumberInput(homework, { homework = it }, 70.dp, 20, ImeAction.Next)
-            NumberInput(oral, { oral = it }, 70.dp, 20, ImeAction.Next)
-            NumberInput(absence, { absence = it }, 55.dp, 20, ImeAction.Next)
+            NumberInput(
+                value = homeworkText,
+                onValueChange = { newText ->
+                    onStateChange(state.copy(homework = newText.toIntOrNull() ?: 0))
+                },
+                width = 70.dp, max = 20, imeAction = ImeAction.Next
+            )
+            NumberInput(
+                value = oralText,
+                onValueChange = { newText ->
+                    onStateChange(state.copy(oral = newText.toIntOrNull() ?: 0))
+                },
+                width = 70.dp, max = 20, imeAction = ImeAction.Next
+            )
+            NumberInput(
+                value = absenceText,
+                onValueChange = { newText ->
+                    onStateChange(state.copy(absence = newText.toIntOrNull() ?: 0))
+                },
+                width = 55.dp, max = 20, imeAction = ImeAction.Next
+            )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.attendance}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary)
             }
-            NumberInput(written, { written = it }, 75.dp, 40, ImeAction.Done)
+            NumberInput(
+                value = writtenText,
+                onValueChange = { newText ->
+                    onStateChange(state.copy(written = newText.toIntOrNull() ?: 0))
+                },
+                width = 75.dp, max = 40, imeAction = ImeAction.Done
+            )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.error)
@@ -378,7 +446,8 @@ private fun NumberInput(
         onValueChange = { new ->
             val filtered = new.filter(Char::isDigit)
             val intVal = filtered.toIntOrNull() ?: 0
-            onValueChange(if (intVal > max) max.toString() else filtered)
+            val finalText = if (intVal > max) max.toString() else filtered
+            onValueChange(finalText)
         },
         modifier = Modifier.width(width).height(50.dp),
         singleLine = true,
@@ -396,11 +465,12 @@ private suspend fun saveAllGrades(
     dao: com.example.schoolmanager.data.SchoolDao,
     students: List<Student>,
     subjectId: String,
-    period: Int
-) {
-    val snapshot = GradeRowStateHolder.snapshot()
+    period: Int,
+    gradeStates: Map<String, GradeRowState>
+): Int {
+    var count = 0
     students.forEach { student ->
-        val state = snapshot[student.id] ?: return@forEach
+        val state = gradeStates[student.id] ?: GradeRowState(0, 0, 0, 0)
         val computed = GradeCalculator.compute(
             period = period,
             homework = state.homework,
@@ -422,6 +492,7 @@ private suspend fun saveAllGrades(
             total = computed.total
         )
         if (existing == null) dao.insertGrade(grade) else dao.updateGrade(grade)
+        count++
     }
-    GradeRowStateHolder.clear()
+    return count
 }
