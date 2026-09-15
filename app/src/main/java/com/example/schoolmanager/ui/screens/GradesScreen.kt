@@ -61,7 +61,7 @@ fun GradesScreen(nav: NavController) {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ★ ScrollState مشترك بين الرأس وجميع الصفوف
+    // ScrollState مشترك بين الرأس وجميع الصفوف
     val sharedScrollState = rememberScrollState()
 
     val gradeStates = remember(subjectId, period) {
@@ -73,9 +73,11 @@ fun GradesScreen(nav: NavController) {
         (sectionId.isBlank() || s.sectionId == sectionId)
     }.sortedBy { it.number.toIntOrNull() ?: 0 }
 
+    // إصلاح فلترة المواد: trim + fallback لجميع المواد
     val availableSubjects = subjects.filter { subj ->
-        subj.classIds.isBlank() || subj.classIds.split(",").contains(classId)
-    }
+        subj.classIds.isBlank() ||
+        subj.classIds.split(",").map { it.trim() }.contains(classId)
+    }.ifEmpty { subjects }
 
     val isExam = GradeCalculator.isExam(period)
 
@@ -136,7 +138,7 @@ fun GradesScreen(nav: NavController) {
                             classes.forEach { c ->
                                 DropdownMenuItem(
                                     text = { Text(c.name) },
-                                    onClick = { classId = c.id; sectionId = ""; classExpanded = false }
+                                    onClick = { classId = c.id; sectionId = ""; subjectId = ""; classExpanded = false }
                                 )
                             }
                         }
@@ -293,7 +295,6 @@ fun GradesScreen(nav: NavController) {
 
                 Card(Modifier.weight(1f)) {
                     Column(Modifier.fillMaxSize()) {
-                        // ★ رأس الجدول — يستخدم نفس ScrollState المشترك
                         Row(
                             Modifier.fillMaxWidth()
                                 .horizontalScroll(sharedScrollState)
