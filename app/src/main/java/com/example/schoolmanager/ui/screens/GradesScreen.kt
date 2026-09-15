@@ -1,10 +1,10 @@
 package com.example.schoolmanager.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -61,8 +61,9 @@ fun GradesScreen(nav: NavController) {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // خريطة الحالة: studentId -> GradeRowState
-    // تُعاد تهيئتها تلقائياً عند تغيير المادة أو الفترة
+    // ★ ScrollState مشترك بين الرأس وجميع الصفوف
+    val sharedScrollState = rememberScrollState()
+
     val gradeStates = remember(subjectId, period) {
         mutableStateMapOf<String, GradeRowState>()
     }
@@ -78,7 +79,6 @@ fun GradesScreen(nav: NavController) {
 
     val isExam = GradeCalculator.isExam(period)
 
-    // تحميل الدرجات المحفوظة من قاعدة البيانات عند تغيير المادة أو الفترة
     LaunchedEffect(subjectId, period) {
         if (subjectId.isNotBlank()) {
             filteredStudents.forEach { student ->
@@ -87,15 +87,15 @@ fun GradesScreen(nav: NavController) {
                     it.subjectId == subjectId &&
                     it.period == period
                 }
-                if (existing != null) {
-                    gradeStates[student.id] = GradeRowState(
+                gradeStates[student.id] = if (existing != null) {
+                    GradeRowState(
                         homework = existing.homework,
                         oral = existing.oral,
                         absence = existing.absence,
                         written = existing.written
                     )
                 } else {
-                    gradeStates[student.id] = GradeRowState(0, 0, 0, 0)
+                    GradeRowState(0, 0, 0, 0)
                 }
             }
         }
@@ -276,7 +276,7 @@ fun GradesScreen(nav: NavController) {
                                 )
                             } catch (e: Exception) {
                                 snackbarHostState.showSnackbar(
-                                    message = "❌ فشل الحفظ: ${e.message ?: "خطأ غير معروف"}",
+                                    message = "❌ فشل الحفظ: ${e.message ?: "خطأ"}",
                                     duration = SnackbarDuration.Long
                                 )
                             }
@@ -293,9 +293,10 @@ fun GradesScreen(nav: NavController) {
 
                 Card(Modifier.weight(1f)) {
                     Column(Modifier.fillMaxSize()) {
+                        // ★ رأس الجدول — يستخدم نفس ScrollState المشترك
                         Row(
                             Modifier.fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
+                                .horizontalScroll(sharedScrollState)
                                 .padding(vertical = 8.dp, horizontal = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -324,7 +325,8 @@ fun GradesScreen(nav: NavController) {
                                     state = st,
                                     onStateChange = { newState ->
                                         gradeStates[student.id] = newState
-                                    }
+                                    },
+                                    scrollState = sharedScrollState
                                 )
                                 Divider()
                             }
@@ -349,11 +351,11 @@ private fun GradeRow(
     student: Student,
     period: Int,
     state: GradeRowState,
-    onStateChange: (GradeRowState) -> Unit
+    onStateChange: (GradeRowState) -> Unit,
+    scrollState: androidx.compose.foundation.ScrollState
 ) {
     val isExam = GradeCalculator.isExam(period)
 
-    // القيم المعروضة: فارغة إذا كانت صفر
     val homeworkText = if (state.homework > 0) state.homework.toString() else ""
     val oralText = if (state.oral > 0) state.oral.toString() else ""
     val absenceText = if (state.absence > 0) state.absence.toString() else ""
@@ -369,7 +371,7 @@ private fun GradeRow(
 
     Row(
         Modifier.fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
+            .horizontalScroll(scrollState)
             .padding(vertical = 4.dp, horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
