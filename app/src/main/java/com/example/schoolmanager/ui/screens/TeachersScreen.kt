@@ -304,8 +304,9 @@ fun TeacherDialog(
                         fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
 
                     subjects.forEach { subject ->
+                        // ★ الإصلاح: التحقق من وجود المادة كمفتاح، وليس من محتوى مجموعتها
+                        val isSelected = assignments.containsKey(subject.id)
                         val selectedClasses = assignments[subject.id] ?: emptySet()
-                        val isSelected = selectedClasses.isNotEmpty()
 
                         Card(
                             Modifier.fillMaxWidth().padding(vertical = 4.dp),
