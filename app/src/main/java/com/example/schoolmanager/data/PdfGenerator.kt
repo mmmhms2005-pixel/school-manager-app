@@ -24,7 +24,7 @@ object PdfGenerator {
 
     private const val MARGIN = 25f
 
-    private const val FONT_SCHOOL = 16f
+    private const val FONT_SCHOOL = 17f
     private const val FONT_YEAR = 10f
     private const val FONT_TITLE = 13f
     private const val FONT_META = 9f
@@ -89,17 +89,17 @@ object PdfGenerator {
         school: SchoolInfo
     ) {
         canvas.drawColor(Color.WHITE)
-        var y = MARGIN
+        var y = MARGIN + 5f
 
         val centerX = pageWidth / 2f
 
-        // ===== 1) الشعار في المنتصف =====
+        // ===== 1) الشعار (في المنتصف، بحجم موحّد) =====
         if (school.logoBase64.isNotBlank()) {
             try {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 if (bitmap != null) {
-                    val maxLogoSize = 60f
+                    val maxLogoSize = 55f
                     val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val logoW: Float
                     val logoH: Float
@@ -113,7 +113,7 @@ object PdfGenerator {
                     val left = centerX - logoW / 2f
                     val destRect = RectF(left, y, left + logoW, y + logoH)
                     canvas.drawBitmap(bitmap, null, destRect, null)
-                    y += logoH + 6
+                    y += logoH + 10f
                 }
             } catch (e: Exception) {
                 // تجاهل أخطاء الشعار
@@ -134,17 +134,17 @@ object PdfGenerator {
             y + FONT_SCHOOL,
             schoolPaint
         )
-        y += FONT_SCHOOL + 4
+        y += FONT_SCHOOL + 8f
 
         // ===== 3) العام الدراسي (في المنتصف) =====
-        val yearPaint = TextPaint().apply {
-            color = Color.DKGRAY
-            textSize = FONT_YEAR
-            textAlign = Paint.Align.CENTER
-        }
         if (school.academicYear.isNotBlank()) {
+            val yearPaint = TextPaint().apply {
+                color = Color.DKGRAY
+                textSize = FONT_YEAR
+                textAlign = Paint.Align.CENTER
+            }
             drawCenteredText(canvas, school.academicYear, centerX, y + FONT_YEAR, yearPaint)
-            y += FONT_YEAR + 4
+            y += FONT_YEAR + 8f
         }
 
         // خط فاصل
@@ -153,7 +153,7 @@ object PdfGenerator {
             strokeWidth = 1.5f
         }
         canvas.drawLine(MARGIN, y, pageWidth - MARGIN, y, linePaint)
-        y += 6
+        y += 8
 
         // ===== عنوان التقرير + المعلومات =====
         val titlePaint = TextPaint().apply {
@@ -244,12 +244,9 @@ object PdfGenerator {
         paint: TextPaint
     ) {
         if (text.isBlank()) return
-
         val linePaint = TextPaint(paint)
         val lineHeight = linePaint.textSize + 2f
-        val totalHeight = lineHeight
-        val startY = boxTop + (boxHeight - totalHeight) / 2f + linePaint.textSize
-
+        val startY = boxTop + (boxHeight - lineHeight) / 2f + linePaint.textSize
         linePaint.textAlign = Paint.Align.CENTER
         canvas.drawText(text, boxLeft + boxWidth / 2f, startY, linePaint)
     }
