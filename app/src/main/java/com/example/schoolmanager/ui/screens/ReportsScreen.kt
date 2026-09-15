@@ -146,6 +146,7 @@ fun AnnualGradesReportScreen(
     val students by dao.students().collectAsState(initial = emptyList())
     val allGrades by dao.grades().collectAsState(initial = emptyList())
     val settings by dao.settings().collectAsState(initial = null)
+    val allTeachers by dao.teachers().collectAsState(initial = emptyList())
 
     var classId by remember { mutableStateOf("") }
     var sectionId by remember { mutableStateOf("") }
@@ -274,27 +275,33 @@ fun AnnualGradesReportScreen(
                                 PdfGenerator.Column("#", 0.06f),
                                 PdfGenerator.Column("رقم الطالب", 0.14f),
                                 PdfGenerator.Column("اسم الطالب", 0.40f),
-                                PdfGenerator.Column("التحريري /30", 0.20f),
-                                PdfGenerator.Column("المجموع /30", 0.20f)
+                                PdfGenerator.Column("تحريري/30", 0.20f),
+                                PdfGenerator.Column("المجموع/30", 0.20f)
                             )
                         } else {
                             listOf(
                                 PdfGenerator.Column("#", 0.05f),
                                 PdfGenerator.Column("رقم الطالب", 0.11f),
                                 PdfGenerator.Column("اسم الطالب", 0.28f),
-                                PdfGenerator.Column("واجب /20", 0.10f),
-                                PdfGenerator.Column("شفهي /20", 0.10f),
+                                PdfGenerator.Column("واجب/20", 0.10f),
+                                PdfGenerator.Column("شفهي/20", 0.10f),
                                 PdfGenerator.Column("غياب", 0.07f),
                                 PdfGenerator.Column("مواظبة", 0.08f),
-                                PdfGenerator.Column("تحريري /40", 0.10f),
+                                PdfGenerator.Column("تحريري/40", 0.10f),
                                 PdfGenerator.Column("المجموع", 0.11f)
                             )
+                        }
+
+                        // ★ البحث عن معلم المادة
+                        val selectedTeacher = allTeachers.firstOrNull { t ->
+                            t.subjectIds.split(",").any { it.trim() == subjectId }
                         }
 
                         val schoolInfo = PdfGenerator.SchoolInfo(
                             schoolName = settings?.schoolName ?: "",
                             academicYear = settings?.academicYear ?: "",
-                            principalName = settings?.principalName ?: ""
+                            principalName = settings?.principalName ?: "",
+                            teacherName = selectedTeacher?.name ?: ""
                         )
 
                         val reportData = PdfGenerator.ReportData(
