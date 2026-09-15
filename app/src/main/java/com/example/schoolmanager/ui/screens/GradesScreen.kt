@@ -34,6 +34,7 @@ import com.example.schoolmanager.data.GradeCalculator
 import com.example.schoolmanager.data.Grade
 import com.example.schoolmanager.data.Student
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -43,6 +44,8 @@ data class GradeRowState(
     val absence: Int = 0,
     val written: Int = 0
 )
+
+data class FocusTarget(val studentId: String, val field: String, val token: Long)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,19 +74,14 @@ fun GradesScreen(nav: NavController) {
     var periodExpanded by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
-
     val sharedScrollState = rememberScrollState()
 
-    // خريطة FocusRequester لكل حقل — key = "studentId_field"
-    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    // نظام التركيز المعلّق
+    var pendingFocus by remember { mutableStateOf<FocusTarget?>(null) }
+    var focusToken by remember { mutableLongStateOf(0L) }
 
     val gradeStates = remember(subjectId, period) {
         mutableStateMapOf<String, GradeRowState>()
-    }
-
-    // عند تغيير المادة أو الفترة، نصفّر طلبات التركيز
-    LaunchedEffect(subjectId, period) {
-        focusRequesters.clear()
     }
 
     val filteredStudents = students.filter { s ->
@@ -117,6 +115,17 @@ fun GradesScreen(nav: NavController) {
                     GradeRowState(0, 0, 0, 0)
                 }
             }
+        }
+    }
+
+    // دالة الانتقال إلى طالب/حقل معين
+    fun navigateTo(studentId: String, field: String) {
+        val idx = filteredStudents.indexOfFirst { it.id == studentId }
+        if (idx < 0) return
+        focusToken++
+        pendingFocus = FocusTarget(studentId, field, focusToken)
+        scope.launch {
+            listState.animateScrollToItem(idx)
         }
     }
 
@@ -339,17 +348,15 @@ fun GradesScreen(nav: NavController) {
                                 val st = gradeStates[student.id] ?: GradeRowState(0, 0, 0, 0)
                                 GradeRow(
                                     student = student,
+                                    studentIndex = idx,
+                                    totalStudents = filteredStudents.size,
                                     period = period,
                                     state = st,
-                                    onStateChange = { newState ->
-                                        gradeStates[student.id] = newState
-                                    },
+                                    onStateChange = { newState -> gradeStates[student.id] = newState },
                                     scrollState = sharedScrollState,
-                                    studentIndex = idx,
-                                    allStudents = filteredStudents,
-                                    focusRequesters = focusRequesters,
-                                    listState = listState,
-                                    scope = scope,
+                                    students = filteredStudents,
+                                    onNavigateTo = ::navigateTo,
+                                    pendingFocus = pendingFocus,
                                     focusManager = focusManager
                                 )
                                 Divider()
@@ -373,57 +380,57 @@ private fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp) {
 @Composable
 private fun GradeRow(
     student: Student,
+    studentIndex: Int,
+    totalStudents: Int,
     period: Int,
     state: GradeRowState,
     onStateChange: (GradeRowState) -> Unit,
     scrollState: ScrollState,
-    studentIndex: Int,
-    allStudents: List<Student>,
-    focusRequesters: MutableMap<String, FocusRequester>,
-    listState: LazyListState,
-    scope: CoroutineScope,
+    students: List<Student>,
+    onNavigateTo: (String, String) -> Unit,
+    pendingFocus: FocusTarget?,
     focusManager: FocusManager
 ) {
     val isExam = GradeCalculator.isExam(period)
 
-    // إنشاء FocusRequester لكل حقل (مُخزّن في remember)
     val homeReq = remember { FocusRequester() }
     val oralReq = remember { FocusRequester() }
     val absReq = remember { FocusRequester() }
     val writtenReq = remember { FocusRequester() }
 
-    // تسجيلهم في الخريطة المشتركة
-    SideEffect {
-        focusRequesters["${student.id}_homework"] = homeReq
-        focusRequesters["${student.id}_oral"] = oralReq
-        focusRequesters["${student.id}_absence"] = absReq
-        focusRequesters["${student.id}_written"] = writtenReq
-    }
-
-    // الانتقال إلى نفس الحقل في الطالب التالي
-    val goToNextStudent: (String) -> Unit = { currentField ->
-        scope.launch {
-            val nextIdx = studentIndex + 1
-            if (nextIdx < allStudents.size) {
-                val nextStudent = allStudents[nextIdx]
-                listState.animateScrollToItem(nextIdx)
-                focusRequesters["${nextStudent.id}_$currentField"]?.requestFocus()
-            } else {
-                focusManager.clearFocus()
-            }
-        }
-    }
-
-    // الانتقال إلى الحقل التالي في نفس الصف
-    val goToNextField: (String) -> Unit = { currentField ->
-        val nextKey = when (currentField) {
-            "homework" -> "${student.id}_oral"
-            "oral" -> "${student.id}_absence"
-            "absence" -> "${student.id}_written"
+    // تفعيل التركيز عندما يصبح هذا الصف هو الهدف
+    LaunchedEffect(pendingFocus?.token) {
+        val pf = pendingFocus ?: return@LaunchedEffect
+        if (pf.studentId != student.id) return@LaunchedEffect
+        delay(100)
+        val req = when (pf.field) {
+            "homework" -> homeReq
+            "oral" -> oralReq
+            "absence" -> absReq
+            "written" -> writtenReq
             else -> null
         }
-        if (nextKey != null) {
-            focusRequesters[nextKey]?.requestFocus()
+        try { req?.requestFocus() } catch (_: Exception) {}
+    }
+
+    val isLastStudent = studentIndex == totalStudents - 1
+    val nextStudentIdx = studentIndex + 1
+
+    // الانتقال التسلسلي: من حقل إلى الذي بعده
+    val goNext: (String) -> Unit = { currentField ->
+        when (currentField) {
+            "homework" -> onNavigateTo(student.id, "oral")
+            "oral" -> onNavigateTo(student.id, "absence")
+            "absence" -> onNavigateTo(student.id, "written")
+            "written" -> {
+                if (nextStudentIdx < totalStudents) {
+                    val next = students[nextStudentIdx]
+                    val firstField = if (isExam) "written" else "homework"
+                    onNavigateTo(next.id, firstField)
+                } else {
+                    focusManager.clearFocus()
+                }
+            }
         }
     }
 
@@ -439,6 +446,10 @@ private fun GradeRow(
         absence = state.absence,
         written = state.written
     )
+
+    // في وضع الامتحان: written هو الحقل الوحيد
+    // الحقل الأخير لآخر طالب يستخدم Done، والبقية Next
+    val writtenIsLast = isLastStudent
 
     Row(
         Modifier.fillMaxWidth()
@@ -456,14 +467,11 @@ private fun GradeRow(
         if (isExam) {
             NumberInput(
                 value = writtenText,
-                onValueChange = { newText ->
-                    onStateChange(state.copy(written = newText.toIntOrNull() ?: 0))
-                },
+                onValueChange = { onStateChange(state.copy(written = it.toIntOrNull() ?: 0)) },
                 width = 75.dp, max = 30,
-                imeAction = ImeAction.Done,
+                imeAction = if (writtenIsLast) ImeAction.Done else ImeAction.Next,
                 focusRequester = writtenReq,
-                onDone = { goToNextStudent("written") },
-                onNext = null
+                onNext = { goNext("written") }
             )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
@@ -472,36 +480,27 @@ private fun GradeRow(
         } else {
             NumberInput(
                 value = homeworkText,
-                onValueChange = { newText ->
-                    onStateChange(state.copy(homework = newText.toIntOrNull() ?: 0))
-                },
+                onValueChange = { onStateChange(state.copy(homework = it.toIntOrNull() ?: 0)) },
                 width = 70.dp, max = 20,
                 imeAction = ImeAction.Next,
                 focusRequester = homeReq,
-                onDone = null,
-                onNext = { goToNextField("homework") }
+                onNext = { goNext("homework") }
             )
             NumberInput(
                 value = oralText,
-                onValueChange = { newText ->
-                    onStateChange(state.copy(oral = newText.toIntOrNull() ?: 0))
-                },
+                onValueChange = { onStateChange(state.copy(oral = it.toIntOrNull() ?: 0)) },
                 width = 70.dp, max = 20,
                 imeAction = ImeAction.Next,
                 focusRequester = oralReq,
-                onDone = null,
-                onNext = { goToNextField("oral") }
+                onNext = { goNext("oral") }
             )
             NumberInput(
                 value = absenceText,
-                onValueChange = { newText ->
-                    onStateChange(state.copy(absence = newText.toIntOrNull() ?: 0))
-                },
+                onValueChange = { onStateChange(state.copy(absence = it.toIntOrNull() ?: 0)) },
                 width = 55.dp, max = 20,
                 imeAction = ImeAction.Next,
                 focusRequester = absReq,
-                onDone = null,
-                onNext = { goToNextField("absence") }
+                onNext = { goNext("absence") }
             )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.attendance}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
@@ -509,14 +508,11 @@ private fun GradeRow(
             }
             NumberInput(
                 value = writtenText,
-                onValueChange = { newText ->
-                    onStateChange(state.copy(written = newText.toIntOrNull() ?: 0))
-                },
+                onValueChange = { onStateChange(state.copy(written = it.toIntOrNull() ?: 0)) },
                 width = 75.dp, max = 40,
-                imeAction = ImeAction.Done,
+                imeAction = if (writtenIsLast) ImeAction.Done else ImeAction.Next,
                 focusRequester = writtenReq,
-                onDone = { goToNextStudent("written") },
-                onNext = null
+                onNext = { goNext("written") }
             )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
@@ -534,8 +530,7 @@ private fun NumberInput(
     max: Int,
     imeAction: ImeAction,
     focusRequester: FocusRequester,
-    onDone: (() -> Unit)?,
-    onNext: (() -> Unit)?
+    onNext: () -> Unit
 ) {
     OutlinedTextField(
         value = value,
@@ -558,12 +553,8 @@ private fun NumberInput(
             imeAction = imeAction
         ),
         keyboardActions = KeyboardActions(
-            onDone = {
-                if (onDone != null) onDone() else { /* تجاهل */ }
-            },
-            onNext = {
-                if (onNext != null) onNext()
-            }
+            onNext = { onNext() },
+            onDone = { onNext() }
         )
     )
 }
