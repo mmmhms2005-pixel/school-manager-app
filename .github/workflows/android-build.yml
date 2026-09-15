@@ -29,6 +29,11 @@ jobs:
         rm -rf app/src/main/res
         rm -rf app/src/main/java/com/example/sampleapp
 
+    - name: Create file_paths.xml
+      run: |
+        mkdir -p app/src/main/res/xml
+        printf '<?xml version="1.0" encoding="utf-8"?>\n<paths>\n    <cache-path name="reports" path="reports/" />\n</paths>\n' > app/src/main/res/xml/file_paths.xml
+
     - name: Generate Gradle Wrapper
       run: gradle wrapper --gradle-version 8.7
 
