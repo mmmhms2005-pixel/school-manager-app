@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.SchoolSettings
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
@@ -38,28 +39,28 @@ fun SettingsScreen(nav: NavController) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ★ جميع الحقول قابلة للكتابة مباشرة، بدون شرط
     var schoolName by remember { mutableStateOf("") }
     var academicYear by remember { mutableStateOf("") }
     var principalName by remember { mutableStateOf("") }
     var logoBase64 by remember { mutableStateOf("") }
 
-    // ★ قراءة واحدة عند فتح الشاشة — يضمن ظهور البيانات المحفوظة
+    // قراءة البيانات المحفوظة — مع إعادة محاولة إن لم تكن جاهزة
     LaunchedEffect(Unit) {
-        try {
-            val s = dao.settings().first()
-            if (s != null) {
-                schoolName = s.schoolName
-                academicYear = s.academicYear
-                principalName = s.principalName
-                logoBase64 = s.logoBase64
-            }
-        } catch (e: Exception) {
-            // تجاهل
+        var s = dao.settings().first()
+        var retries = 0
+        while (s == null && retries < 15) {
+            delay(100)
+            s = dao.settings().first()
+            retries++
+        }
+        if (s != null) {
+            schoolName = s.schoolName
+            academicYear = s.academicYear
+            principalName = s.principalName
+            logoBase64 = s.logoBase64
         }
     }
 
-    // منتقي الصور
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -103,6 +104,7 @@ fun SettingsScreen(nav: NavController) {
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
@@ -117,7 +119,6 @@ fun SettingsScreen(nav: NavController) {
 
             Spacer(Modifier.height(16.dp))
 
-            // ★ اسم المدرسة
             OutlinedTextField(
                 value = schoolName,
                 onValueChange = { schoolName = it },
@@ -128,7 +129,6 @@ fun SettingsScreen(nav: NavController) {
 
             Spacer(Modifier.height(12.dp))
 
-            // ★ العام الدراسي
             OutlinedTextField(
                 value = academicYear,
                 onValueChange = { academicYear = it },
@@ -140,7 +140,6 @@ fun SettingsScreen(nav: NavController) {
 
             Spacer(Modifier.height(12.dp))
 
-            // ★ مدير المدرسة — قابل للكتابة مباشرة
             OutlinedTextField(
                 value = principalName,
                 onValueChange = { principalName = it },
@@ -151,7 +150,6 @@ fun SettingsScreen(nav: NavController) {
 
             Spacer(Modifier.height(20.dp))
 
-            // الشعار
             Text("🖼️ شعار المدرسة", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.height(8.dp))
 
@@ -206,7 +204,6 @@ fun SettingsScreen(nav: NavController) {
 
             Spacer(Modifier.height(24.dp))
 
-            // زر الحفظ
             Button(
                 onClick = {
                     scope.launch {
