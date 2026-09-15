@@ -1,10 +1,14 @@
 package com.example.schoolmanager.ui.screens
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -13,7 +17,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,6 +33,7 @@ import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.GradeCalculator
 import com.example.schoolmanager.data.Grade
 import com.example.schoolmanager.data.Student
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -42,6 +51,8 @@ fun GradesScreen(nav: NavController) {
     val app = ctx.applicationContext as SchoolApplication
     val dao = app.database.dao()
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val listState = rememberLazyListState()
 
     val classes by dao.classes().collectAsState(initial = emptyList())
     val sections by dao.sections().collectAsState(initial = emptyList())
@@ -61,11 +72,18 @@ fun GradesScreen(nav: NavController) {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ScrollState مشترك بين الرأس وجميع الصفوف
     val sharedScrollState = rememberScrollState()
+
+    // خريطة FocusRequester لكل حقل — key = "studentId_field"
+    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
 
     val gradeStates = remember(subjectId, period) {
         mutableStateMapOf<String, GradeRowState>()
+    }
+
+    // عند تغيير المادة أو الفترة، نصفّر طلبات التركيز
+    LaunchedEffect(subjectId, period) {
+        focusRequesters.clear()
     }
 
     val filteredStudents = students.filter { s ->
@@ -73,7 +91,6 @@ fun GradesScreen(nav: NavController) {
         (sectionId.isBlank() || s.sectionId == sectionId)
     }.sortedBy { it.number.toIntOrNull() ?: 0 }
 
-    // إصلاح فلترة المواد: trim + fallback لجميع المواد
     val availableSubjects = subjects.filter { subj ->
         subj.classIds.isBlank() ||
         subj.classIds.split(",").map { it.trim() }.contains(classId)
@@ -317,8 +334,8 @@ fun GradesScreen(nav: NavController) {
                             }
                         }
                         Divider()
-                        LazyColumn(Modifier.fillMaxSize()) {
-                            items(filteredStudents, key = { it.id }) { student ->
+                        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                            itemsIndexed(filteredStudents, key = { _, s -> s.id }) { idx, student ->
                                 val st = gradeStates[student.id] ?: GradeRowState(0, 0, 0, 0)
                                 GradeRow(
                                     student = student,
@@ -327,7 +344,13 @@ fun GradesScreen(nav: NavController) {
                                     onStateChange = { newState ->
                                         gradeStates[student.id] = newState
                                     },
-                                    scrollState = sharedScrollState
+                                    scrollState = sharedScrollState,
+                                    studentIndex = idx,
+                                    allStudents = filteredStudents,
+                                    focusRequesters = focusRequesters,
+                                    listState = listState,
+                                    scope = scope,
+                                    focusManager = focusManager
                                 )
                                 Divider()
                             }
@@ -353,9 +376,56 @@ private fun GradeRow(
     period: Int,
     state: GradeRowState,
     onStateChange: (GradeRowState) -> Unit,
-    scrollState: androidx.compose.foundation.ScrollState
+    scrollState: ScrollState,
+    studentIndex: Int,
+    allStudents: List<Student>,
+    focusRequesters: MutableMap<String, FocusRequester>,
+    listState: LazyListState,
+    scope: CoroutineScope,
+    focusManager: FocusManager
 ) {
     val isExam = GradeCalculator.isExam(period)
+
+    // إنشاء FocusRequester لكل حقل (مُخزّن في remember)
+    val homeReq = remember { FocusRequester() }
+    val oralReq = remember { FocusRequester() }
+    val absReq = remember { FocusRequester() }
+    val writtenReq = remember { FocusRequester() }
+
+    // تسجيلهم في الخريطة المشتركة
+    SideEffect {
+        focusRequesters["${student.id}_homework"] = homeReq
+        focusRequesters["${student.id}_oral"] = oralReq
+        focusRequesters["${student.id}_absence"] = absReq
+        focusRequesters["${student.id}_written"] = writtenReq
+    }
+
+    // الانتقال إلى نفس الحقل في الطالب التالي
+    val goToNextStudent: (String) -> Unit = { currentField ->
+        scope.launch {
+            val nextIdx = studentIndex + 1
+            if (nextIdx < allStudents.size) {
+                val nextStudent = allStudents[nextIdx]
+                listState.animateScrollToItem(nextIdx)
+                focusRequesters["${nextStudent.id}_$currentField"]?.requestFocus()
+            } else {
+                focusManager.clearFocus()
+            }
+        }
+    }
+
+    // الانتقال إلى الحقل التالي في نفس الصف
+    val goToNextField: (String) -> Unit = { currentField ->
+        val nextKey = when (currentField) {
+            "homework" -> "${student.id}_oral"
+            "oral" -> "${student.id}_absence"
+            "absence" -> "${student.id}_written"
+            else -> null
+        }
+        if (nextKey != null) {
+            focusRequesters[nextKey]?.requestFocus()
+        }
+    }
 
     val homeworkText = if (state.homework > 0) state.homework.toString() else ""
     val oralText = if (state.oral > 0) state.oral.toString() else ""
@@ -389,7 +459,11 @@ private fun GradeRow(
                 onValueChange = { newText ->
                     onStateChange(state.copy(written = newText.toIntOrNull() ?: 0))
                 },
-                width = 75.dp, max = 30, imeAction = ImeAction.Done
+                width = 75.dp, max = 30,
+                imeAction = ImeAction.Done,
+                focusRequester = writtenReq,
+                onDone = { goToNextStudent("written") },
+                onNext = null
             )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
@@ -401,21 +475,33 @@ private fun GradeRow(
                 onValueChange = { newText ->
                     onStateChange(state.copy(homework = newText.toIntOrNull() ?: 0))
                 },
-                width = 70.dp, max = 20, imeAction = ImeAction.Next
+                width = 70.dp, max = 20,
+                imeAction = ImeAction.Next,
+                focusRequester = homeReq,
+                onDone = null,
+                onNext = { goToNextField("homework") }
             )
             NumberInput(
                 value = oralText,
                 onValueChange = { newText ->
                     onStateChange(state.copy(oral = newText.toIntOrNull() ?: 0))
                 },
-                width = 70.dp, max = 20, imeAction = ImeAction.Next
+                width = 70.dp, max = 20,
+                imeAction = ImeAction.Next,
+                focusRequester = oralReq,
+                onDone = null,
+                onNext = { goToNextField("oral") }
             )
             NumberInput(
                 value = absenceText,
                 onValueChange = { newText ->
                     onStateChange(state.copy(absence = newText.toIntOrNull() ?: 0))
                 },
-                width = 55.dp, max = 20, imeAction = ImeAction.Next
+                width = 55.dp, max = 20,
+                imeAction = ImeAction.Next,
+                focusRequester = absReq,
+                onDone = null,
+                onNext = { goToNextField("absence") }
             )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.attendance}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
@@ -426,7 +512,11 @@ private fun GradeRow(
                 onValueChange = { newText ->
                     onStateChange(state.copy(written = newText.toIntOrNull() ?: 0))
                 },
-                width = 75.dp, max = 40, imeAction = ImeAction.Done
+                width = 75.dp, max = 40,
+                imeAction = ImeAction.Done,
+                focusRequester = writtenReq,
+                onDone = { goToNextStudent("written") },
+                onNext = null
             )
             Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                 Text("${computed.total}", fontWeight = FontWeight.Bold, fontSize = 12.sp,
@@ -442,7 +532,10 @@ private fun NumberInput(
     onValueChange: (String) -> Unit,
     width: androidx.compose.ui.unit.Dp,
     max: Int,
-    imeAction: ImeAction
+    imeAction: ImeAction,
+    focusRequester: FocusRequester,
+    onDone: (() -> Unit)?,
+    onNext: (() -> Unit)?
 ) {
     OutlinedTextField(
         value = value,
@@ -452,7 +545,10 @@ private fun NumberInput(
             val finalText = if (intVal > max) max.toString() else filtered
             onValueChange(finalText)
         },
-        modifier = Modifier.width(width).height(50.dp),
+        modifier = Modifier
+            .width(width)
+            .height(50.dp)
+            .focusRequester(focusRequester),
         singleLine = true,
         textStyle = LocalTextStyle.current.copy(
             fontSize = 12.sp, textAlign = TextAlign.Center
@@ -460,6 +556,14 @@ private fun NumberInput(
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Number,
             imeAction = imeAction
+        ),
+        keyboardActions = KeyboardActions(
+            onDone = {
+                if (onDone != null) onDone() else { /* تجاهل */ }
+            },
+            onNext = {
+                if (onNext != null) onNext()
+            }
         )
     )
 }
