@@ -38,9 +38,11 @@ fun ClassesScreen(nav: NavController) {
     val sections by dao.sections().collectAsState(initial = emptyList())
     val students by dao.students().collectAsState(initial = emptyList())
 
-    var showDialog by remember { mutableStateOf(false) }
+    var showClassDialog by remember { mutableStateOf(false) }
+    var showSectionsDialog by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<SchoolClass?>(null) }
     var deleting by remember { mutableStateOf<SchoolClass?>(null) }
+    var newSectionName by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -51,16 +53,22 @@ fun ClassesScreen(nav: NavController) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "رجوع")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showSectionsDialog = true }) {
+                        Text("📋", fontSize = 20.sp)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { editing = null; showDialog = true },
+                onClick = { editing = null; showClassDialog = true },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
                 text = { Text("إضافة صف") }
             )
@@ -74,7 +82,7 @@ fun ClassesScreen(nav: NavController) {
                 )
             ) {
                 Text(
-                    "📌 تم اعتماد 12 صفاً دراسياً: الأول إلى التاسع، ثم الأول والثاني والثالث الثانوي.",
+                    "📌 اضغط 📋 في الأعلى لإضافة أو حذف الشعب. ثم حدد لكل صف شعبه.",
                     Modifier.padding(12.dp),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -83,7 +91,7 @@ fun ClassesScreen(nav: NavController) {
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(12.dp),
+                contentPadding = PaddingValues(12.dp, 0.dp, 12.dp, 90.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -92,7 +100,7 @@ fun ClassesScreen(nav: NavController) {
                         cls = cls,
                         sections = sections,
                         studentCount = students.count { it.classId == cls.id },
-                        onEdit = { editing = cls; showDialog = true },
+                        onEdit = { editing = cls; showClassDialog = true },
                         onDelete = { deleting = cls }
                     )
                 }
@@ -100,17 +108,88 @@ fun ClassesScreen(nav: NavController) {
         }
     }
 
-    if (showDialog) {
+    if (showClassDialog) {
         ClassDialog(
             cls = editing,
             sections = sections,
-            onDismiss = { showDialog = false },
+            onDismiss = { showClassDialog = false },
             onSave = { c ->
                 scope.launch {
                     if (editing == null) dao.insertClass(c)
                     else dao.updateClass(c)
                 }
-                showDialog = false
+                showClassDialog = false
+            }
+        )
+    }
+
+    if (showSectionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSectionsDialog = false },
+            title = { Text("إدارة الشعب") },
+            text = {
+                Column(Modifier.fillMaxWidth()) {
+                    Text("أضف الشعب التي تحتاجها مدرستك.",
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                    Spacer(Modifier.height(12.dp))
+
+                    // حقل الإضافة
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = newSectionName,
+                            onValueChange = { newSectionName = it },
+                            label = { Text("اسم الشعبة") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val n = newSectionName.trim()
+                                if (n.isNotBlank() && sections.none { it.name == n }) {
+                                    scope.launch {
+                                        dao.insertSection(Section(
+                                            id = UUID.randomUUID().toString(),
+                                            name = n
+                                        ))
+                                    }
+                                    newSectionName = ""
+                                }
+                            },
+                            enabled = newSectionName.isNotBlank() &&
+                                    sections.none { it.name == newSectionName.trim() }
+                        ) { Text("إضافة") }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    Text("الشعب الحالية (${sections.size}):",
+                        fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Spacer(Modifier.height(8.dp))
+
+                    if (sections.isEmpty()) {
+                        Text("لا توجد شعب بعد.", fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.secondary)
+                    } else {
+                        sections.forEach { s ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(s.name, Modifier.weight(1f), fontSize = 14.sp)
+                                IconButton(onClick = {
+                                    scope.launch { dao.deleteSection(s) }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "حذف",
+                                        tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                            Divider()
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSectionsDialog = false }) { Text("إغلاق") }
             }
         )
     }
@@ -232,21 +311,27 @@ fun ClassDialog(
                 Text("الشعب المتاحة في هذا الصف:", fontWeight = FontWeight.Bold,
                     fontSize = 13.sp)
                 Spacer(Modifier.height(6.dp))
-                sections.forEach { s ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = s.id in selectedSections,
-                            onCheckedChange = { checked ->
-                                selectedSections = if (checked)
-                                    selectedSections + s.id
-                                else
-                                    selectedSections - s.id
-                            }
-                        )
-                        Text(s.name)
+
+                if (sections.isEmpty()) {
+                    Text("لا توجد شعب — أضف من أيقونة 📋",
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                } else {
+                    sections.forEach { s ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = s.id in selectedSections,
+                                onCheckedChange = { checked ->
+                                    selectedSections = if (checked)
+                                        selectedSections + s.id
+                                    else
+                                        selectedSections - s.id
+                                }
+                            )
+                            Text(s.name)
+                        }
                     }
                 }
             }
