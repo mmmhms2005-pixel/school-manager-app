@@ -24,10 +24,10 @@ object PdfGenerator {
     private const val FONT_SCHOOL = 17f
     private const val FONT_YEAR = 10f
     private const val FONT_TITLE = 13f
-    private const val FONT_META = 9f
+    private const val FONT_META = 12f
     private const val FONT_TABLE_HEADER = 9f
     private const val FONT_TABLE_BODY = 9f
-    private const val FONT_SIGNATURE = 9f
+    private const val FONT_SIGNATURE = 10f
 
     data class SchoolInfo(
         val schoolName: String = "",
@@ -90,7 +90,7 @@ object PdfGenerator {
 
         val centerX = pageWidth / 2f
 
-        // ===== 1) الشعار (في المنتصف تماماً) =====
+        // ===== 1) الشعار =====
         if (school.logoBase64.isNotBlank()) {
             try {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
@@ -117,7 +117,7 @@ object PdfGenerator {
             }
         }
 
-        // ===== 2) اسم المدرسة (في المنتصف تماماً) =====
+        // ===== 2) اسم المدرسة =====
         val schoolPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_SCHOOL
@@ -132,7 +132,7 @@ object PdfGenerator {
         )
         y += FONT_SCHOOL + 5f
 
-        // ===== 3) العام الدراسي (في المنتصف تماماً) =====
+        // ===== 3) العام الدراسي =====
         if (school.academicYear.isNotBlank()) {
             val yearPaint = TextPaint().apply {
                 color = Color.DKGRAY
@@ -148,9 +148,9 @@ object PdfGenerator {
             strokeWidth = 1.5f
         }
         canvas.drawLine(MARGIN, y, pageWidth - MARGIN, y, linePaint)
-        y += 10
+        y += 12
 
-        // ===== عنوان التقرير + المعلومات =====
+        // ===== عنوان التقرير (يمين) + المعلومات (يسار) =====
         val titlePaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_TITLE
@@ -159,14 +159,16 @@ object PdfGenerator {
         }
         canvas.drawText(report.title, pageWidth - MARGIN, y + FONT_TITLE, titlePaint)
 
+        // ★ الخط الأوضح للمعلومات
         val metaPaint = TextPaint().apply {
-            color = Color.DKGRAY
+            color = Color.rgb(50, 50, 50)
             textSize = FONT_META
             textAlign = Paint.Align.LEFT
+            isFakeBoldText = true
         }
         canvas.drawText(report.meta, MARGIN, y + FONT_META, metaPaint)
 
-        y += FONT_TITLE + 10
+        y += FONT_TITLE + 14
 
         // ===== الجدول =====
         val tableWidth = pageWidth - 2 * MARGIN
@@ -213,7 +215,7 @@ object PdfGenerator {
         }
 
         report.rows.forEach { row ->
-            if (y + rowHeight > pageHeight - MARGIN - 60) return@forEach
+            if (y + rowHeight > pageHeight - MARGIN - 90) return@forEach
             x = pageWidth - MARGIN
             row.forEachIndexed { i, cell ->
                 val colW = colWidths.getOrElse(i) { 0f }
@@ -246,22 +248,33 @@ object PdfGenerator {
         canvas.drawText(text, boxLeft + boxWidth / 2f, startY, linePaint)
     }
 
+    /**
+     * التوقيعات مع فراغ مخصص للتوقيع الفعلي وكلمة "التوقيع/"
+     */
     private fun drawSignatures(canvas: Canvas, pageWidth: Int, pageHeight: Int, school: SchoolInfo) {
-        val sigY = pageHeight - 50f
-        val sigPaint = TextPaint().apply {
+        // خط التوقيع على مسافة كافية من أسفل الصفحة
+        val signLineY = pageHeight - 75f
+
+        val labelPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_SIGNATURE
             textAlign = Paint.Align.CENTER
             isFakeBoldText = true
         }
-        val namePaint = TextPaint().apply {
+        val signHintPaint = TextPaint().apply {
             color = Color.DKGRAY
+            textSize = 9f
+            textAlign = Paint.Align.RIGHT
+            isFakeBoldText = true
+        }
+        val namePaint = TextPaint().apply {
+            color = Color.rgb(40, 40, 40)
             textSize = FONT_SIGNATURE
             textAlign = Paint.Align.CENTER
         }
         val linePaint = Paint().apply {
             color = Color.DKGRAY
-            strokeWidth = 0.5f
+            strokeWidth = 0.7f
         }
 
         val third = (pageWidth - 2 * MARGIN) / 3f
@@ -275,18 +288,26 @@ object PdfGenerator {
         val values = listOf(school.teacherName, school.principalName, "")
 
         positions.forEachIndexed { i, x ->
-            canvas.drawLine(x - third * 0.3f, sigY, x + third * 0.3f, sigY, linePaint)
-            canvas.drawText(labels[i], x, sigY + 12, sigPaint)
+            // خط التوقيع
+            canvas.drawLine(x - third * 0.32f, signLineY, x + third * 0.32f, signLineY, linePaint)
+
+            // الفراغ المخصص للتوقيع (فوق الخط) — يُملأ يدوياً
+            // لا نرسم شيئاً هنا
+
+            // كلمة "معلم المادة" / "مدير المدرسة" / "الختم الرسمي"
+            canvas.drawText(labels[i], x, signLineY - 8, labelPaint)
+
+            // كلمة "التوقيع/" — تحت الكلمة الأساسية، منحازة لليمين قليلاً
+            val signHintX = x + third * 0.18f
+            canvas.drawText("التوقيع/", signHintX, signLineY + 16, signHintPaint)
+
+            // اسم المعلم/المدير
             if (values[i].isNotBlank()) {
-                canvas.drawText(values[i], x, sigY + 24, namePaint)
+                canvas.drawText(values[i], x, signLineY + 32, namePaint)
             }
         }
     }
 
-    /**
-     * رسم النص في المنتصف تماماً — يقيس العرض الفعلي للنص ثم يضعه في المنتصف.
-     * هذا يحل مشكلة عدم توسيط النص العربي بشكل دقيق.
-     */
     private fun drawCenteredText(
         canvas: Canvas,
         text: String,
