@@ -123,7 +123,6 @@ fun StudentsScreen(nav: NavController) {
                     }
                 }
             } else {
-                // ★ contentPadding لإبعاد القائمة عن الزر العائم
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 90.dp)
@@ -247,7 +246,6 @@ fun StudentDialog(
     var classExpanded by remember { mutableStateOf(false) }
     var sectionExpanded by remember { mutableStateOf(false) }
 
-    // الشعب المتاحة للصف المختار فقط
     val allowedSections = remember(classId, classes, sections) {
         val cls = classes.find { it.id == classId }
         val ids = cls?.sectionIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
@@ -350,9 +348,19 @@ fun StudentDialog(
             TextButton(
                 enabled = name.isNotBlank() && classId.isNotBlank(),
                 onClick = {
-                    val finalNumber = if (number.isBlank()) {
-                        generateNextNumber(existingStudents)
-                    } else number.trim()
+                    // ★ الأرقام المستخدمة (مع استثناء الطالب الحالي عند التعديل)
+                    val usedNumbers = existingStudents
+                        .filter { it.id != student?.id }
+                        .map { it.number }
+                        .toSet()
+
+                    val trimmedInput = number.trim()
+                    val finalNumber: String = when {
+                        trimmedInput.isBlank() -> generateUniqueNumber(usedNumbers)
+                        usedNumbers.contains(trimmedInput) -> generateUniqueNumber(usedNumbers)
+                        else -> trimmedInput
+                    }
+
                     onSave(Student(
                         id = student?.id ?: UUID.randomUUID().toString(),
                         number = finalNumber,
@@ -405,7 +413,7 @@ fun BulkStudentsDialog(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    "الصق الأسماء (كل سطر = طالب واحد). سيتم توليد رقم تسلسلي تلقائياً.",
+                    "الصق الأسماء (كل سطر = طالب واحد). سيتم توليد رقم تسلسلي تلقائياً وفريد لكل طالب.",
                     fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary
                 )
                 Spacer(Modifier.height(10.dp))
@@ -501,13 +509,11 @@ fun BulkStudentsDialog(
             TextButton(
                 enabled = classId.isNotBlank() && nameLines.isNotEmpty(),
                 onClick = {
-                    var nextNum = generateNextNumber(existingStudents).toIntOrNull() ?: 1
+                    // ★ الأرقام المستخدمة: الطلاب الموجودون + الطلاب الجدد
                     val usedNumbers = existingStudents.map { it.number }.toMutableSet()
                     val newStudents = nameLines.map { line ->
-                        while (usedNumbers.contains(nextNum.toString())) nextNum++
-                        val num = nextNum.toString()
+                        val num = generateUniqueNumber(usedNumbers)
                         usedNumbers.add(num)
-                        nextNum++
                         Student(
                             id = UUID.randomUUID().toString(),
                             number = num,
@@ -528,8 +534,12 @@ fun BulkStudentsDialog(
     )
 }
 
-private fun generateNextNumber(existing: List<Student>): String {
-    val numbers = existing.mapNotNull { it.number.toIntOrNull() }
-    val max = numbers.maxOrNull() ?: 0
-    return (max + 1).toString()
+/**
+ * يولّد رقماً تسلسلياً فريداً بدءاً من 1.
+ * يتخطى الأرقام المستخدمة حتى يجد رقماً حراً.
+ */
+private fun generateUniqueNumber(usedNumbers: Set<String>): String {
+    var n = 1
+    while (usedNumbers.contains(n.toString())) n++
+    return n.toString()
 }
