@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.schoolmanager.SchoolApplication
+import com.example.schoolmanager.data.BackupManager
 import com.example.schoolmanager.data.SchoolSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -44,7 +45,6 @@ fun SettingsScreen(nav: NavController) {
     var principalName by remember { mutableStateOf("") }
     var logoBase64 by remember { mutableStateOf("") }
 
-    // قراءة البيانات المحفوظة — مع إعادة محاولة إن لم تكن جاهزة
     LaunchedEffect(Unit) {
         var s = dao.settings().first()
         var retries = 0
@@ -79,6 +79,41 @@ fun SettingsScreen(nav: NavController) {
             } catch (e: Exception) {
                 // تجاهل
             }
+        }
+    }
+
+    // ★ منتقي موقع حفظ النسخة الاحتياطية
+    val backupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let {
+            scope.launch {
+                val result = BackupManager.exportBackup(ctx, it)
+                if (result.isSuccess) {
+                    snackbarHostState.showSnackbar(
+                        message = "✅ تم حفظ النسخة الاحتياطية (${result.getOrNull()} سجل)",
+                        duration = SnackbarDuration.Long
+                    )
+                } else {
+                    snackbarHostState.showSnackbar(
+                        message = "❌ فشل التصدير: ${result.exceptionOrNull()?.message ?: "خطأ"}",
+                        duration = SnackbarDuration.Long
+                    )
+                }
+            }
+        }
+    }
+
+    // ★ منتقي ملف النسخة الاحتياطية للاستعادة
+    var pendingRestoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var showRestoreDialog by remember { mutableStateOf(false) }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            pendingRestoreUri = it
+            showRestoreDialog = true
         }
     }
 
@@ -236,8 +271,139 @@ fun SettingsScreen(nav: NavController) {
                 Text("حفظ البيانات", fontWeight = FontWeight.Bold)
             }
 
+            // ═══════════════════════════════════
+            // قسم النسخ الاحتياطي والاستعادة
+            // ═══════════════════════════════════
+
+            Spacer(Modifier.height(32.dp))
+            Divider()
+            Spacer(Modifier.height(20.dp))
+
+            Text(
+                "💾 النسخ الاحتياطي والاستعادة",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Text(
+                    "📌 احفظ نسخة كاملة من بياناتك (الطلاب، المعلمون، الدرجات، ...) في ملف JSON، لاستعادتها عند الحاجة.",
+                    Modifier.padding(12.dp),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // زر النسخة الاحتياطية
+            Button(
+                onClick = {
+                    backupLauncher.launch(BackupManager.suggestFileName())
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text("💾 إنشاء نسخة احتياطية", fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // زر الاستعادة
+            OutlinedButton(
+                onClick = {
+                    restoreLauncher.launch("application/json")
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("♻️ استعادة من نسخة احتياطية", fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                "⚠️ تحذير: عند الاستعادة، ستُحذف جميع البيانات الحالية وتُستبدل ببيانات النسخة الاحتياطية.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.error
+            )
+
             Spacer(Modifier.height(30.dp))
         }
+    }
+
+    // ═══════════════════════════════════
+    // حوار تأكيد الاستعادة
+    // ═══════════════════════════════════
+    if (showRestoreDialog && pendingRestoreUri != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showRestoreDialog = false
+                pendingRestoreUri = null
+            },
+            icon = { Text("⚠️", fontSize = 32.sp) },
+            title = { Text("تأكيد الاستعادة") },
+            text = {
+                Text(
+                    "سيتم حذف جميع البيانات الحالية (الطلاب، المعلمون، الدرجات، الإعدادات) واستبدالها ببيانات النسخة الاحتياطية.\n\nهل أنت متأكد؟"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val uri = pendingRestoreUri ?: return@TextButton
+                        showRestoreDialog = false
+                        pendingRestoreUri = null
+                        scope.launch {
+                            val result = BackupManager.importBackup(ctx, uri)
+                            if (result.isSuccess) {
+                                snackbarHostState.showSnackbar(
+                                    message = "✅ تمت الاستعادة (${result.getOrNull()} سجل). سيُعاد تحميل الشاشة.",
+                                    duration = SnackbarDuration.Long
+                                )
+                                delay(2000)
+                                // إعادة تحميل القيم
+                                val s = dao.settings().first()
+                                if (s != null) {
+                                    schoolName = s.schoolName
+                                    academicYear = s.academicYear
+                                    principalName = s.principalName
+                                    logoBase64 = s.logoBase64
+                                }
+                            } else {
+                                snackbarHostState.showSnackbar(
+                                    message = "❌ فشلت الاستعادة: ${result.exceptionOrNull()?.message ?: "خطأ"}",
+                                    duration = SnackbarDuration.Long
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    Text("نعم، استعد", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showRestoreDialog = false
+                        pendingRestoreUri = null
+                    }
+                ) {
+                    Text("إلغاء")
+                }
+            }
+        )
     }
 }
 
