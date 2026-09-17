@@ -7,12 +7,15 @@ import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Save
@@ -22,7 +25,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -32,6 +38,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.BackupManager
+import com.example.schoolmanager.data.DeviceIdManager
+import com.example.schoolmanager.data.LicenseManager
 import com.example.schoolmanager.data.SchoolClass
 import com.example.schoolmanager.data.SchoolSettings
 import com.example.schoolmanager.data.SecurityManager
@@ -39,6 +47,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,19 +59,24 @@ fun SettingsScreen(nav: NavController) {
     val dao = app.database.dao()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val clipboard = LocalClipboardManager.current
 
-    // بيانات المدرسة
+    // ═══ بيانات المدرسة ═══
     var schoolName by remember { mutableStateOf("") }
     var academicYear by remember { mutableStateOf("") }
     var principalName by remember { mutableStateOf("") }
     var logoBase64 by remember { mutableStateOf("") }
 
-    // الحماية
+    // ═══ الحماية ═══
     var pinEnabled by remember { mutableStateOf(SecurityManager.isPinEnabled(ctx)) }
     var autoLockMinutes by remember { mutableStateOf(SecurityManager.getAutoLockMinutes(ctx).toString()) }
     var encryptBackup by remember { mutableStateOf(SecurityManager.isBackupEncryptionEnabled(ctx)) }
 
-    // حوارات
+    // ═══ الترخيص ═══
+    val deviceId = remember { DeviceIdManager.getDeviceId(ctx) }
+    var licenseStatus by remember { mutableStateOf(LicenseManager.getStatus(ctx)) }
+
+    // ═══ حوارات ═══
     var showPinDialog by remember { mutableStateOf(false) }
     var pinMode by remember { mutableStateOf("set") }
     var showRemovePinDialog by remember { mutableStateOf(false) }
@@ -75,6 +91,11 @@ fun SettingsScreen(nav: NavController) {
     var showDeleteBackupOffer by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showDeletePinDialog by remember { mutableStateOf(false) }
+
+    // ★ حوار التفعيل الجديد
+    var showReactivationDialog by remember { mutableStateOf(false) }
+    var newLicenseKey by remember { mutableStateOf("") }
+    var reactivationError by remember { mutableStateOf("") }
 
     // تحميل الإعدادات
     LaunchedEffect(Unit) {
@@ -91,6 +112,8 @@ fun SettingsScreen(nav: NavController) {
             principalName = s.principalName
             logoBase64 = s.logoBase64
         }
+        // ★ تحديث حالة الترخيص
+        licenseStatus = LicenseManager.getStatus(ctx)
     }
 
     // منتقي الصور
@@ -112,7 +135,7 @@ fun SettingsScreen(nav: NavController) {
         }
     }
 
-    // منتقي النسخة الاحتياطية (للتصدير)
+    // منتقي النسخة الاحتياطية
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -133,8 +156,7 @@ fun SettingsScreen(nav: NavController) {
         }
     }
 
-    // ★ منتقي النسخة الاحتياطية للحفظ التلقائي قبل الحذف
-    var pendingBackupBeforeDeleteUri by remember { mutableStateOf<Uri?>(null) }
+    // منتقي النسخة الاحتياطية قبل الحذف
     val deleteBackupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -143,7 +165,6 @@ fun SettingsScreen(nav: NavController) {
                 val result = BackupManager.exportBackup(ctx, it, null)
                 if (result.isSuccess) {
                     snackbarHostState.showSnackbar("✅ تم الحفظ (${result.getOrNull()} سجل)")
-                    // بعد الحفظ، ننتقل لتأكيد الحذف
                     delay(800)
                     showDeleteConfirm = true
                 } else {
@@ -151,7 +172,6 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
         } ?: run {
-            // إذا ألغى المستخدم اختيار الملف، نعود للخيار
             showDeleteBackupOffer = true
         }
     }
@@ -204,7 +224,35 @@ fun SettingsScreen(nav: NavController) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // ═══ بيانات المدرسة ═══
+            // ═══════════════════════════════════
+            // ★★★ قسم الترخيص (في الأعلى) ★★★
+            // ═══════════════════════════════════
+
+            LicenseStatusCard(
+                status = licenseStatus,
+                deviceId = deviceId,
+                onCopyDeviceId = {
+                    clipboard.setText(AnnotatedString(deviceId))
+                    scope.launch {
+                        snackbarHostState.showSnackbar("✅ تم نسخ كود الجهاز")
+                    }
+                },
+                onReactivate = { showReactivationDialog = true }
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            // ═══════════════════════════════════
+            // بيانات المدرسة
+            // ═══════════════════════════════════
+            Text(
+                "🏫 بيانات المدرسة",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(12.dp))
+
             Card(Modifier.fillMaxWidth()) {
                 Text(
                     "📌 هذه البيانات تظهر تلقائياً في ترويسة الكشوفات والتقارير المطبوعة.",
@@ -213,7 +261,7 @@ fun SettingsScreen(nav: NavController) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = schoolName,
@@ -293,7 +341,7 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
             Button(
                 onClick = {
                     scope.launch {
@@ -489,9 +537,7 @@ fun SettingsScreen(nav: NavController) {
                 color = MaterialTheme.colorScheme.error
             )
 
-            // ═══════════════════════════════════
-            // ★★ منطقة الخطر ★★
-            // ═══════════════════════════════════
+            // ═══ منطقة الخطر ═══
             Spacer(Modifier.height(32.dp))
             Divider(color = MaterialTheme.colorScheme.error)
             Spacer(Modifier.height(20.dp))
@@ -547,9 +593,89 @@ fun SettingsScreen(nav: NavController) {
     }
 
     // ═══════════════════════════════════
-    // الحوارات (PIN، النسخ الاحتياطي، إلخ)
+    // ★ حوار إعادة التفعيل
     // ═══════════════════════════════════
+    if (showReactivationDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showReactivationDialog = false
+                newLicenseKey = ""
+                reactivationError = ""
+            },
+            icon = { Text("🔑", fontSize = 32.sp) },
+            title = { Text("تجديد الاشتراك") },
+            text = {
+                Column {
+                    Text(
+                        "أدخل كود التفعيل الجديد الذي حصلت عليه من البائع:",
+                        fontSize = 13.sp
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = newLicenseKey,
+                        onValueChange = {
+                            newLicenseKey = it.uppercase().filter { c ->
+                                c.isLetterOrDigit() || c == '-'
+                            }
+                            reactivationError = ""
+                        },
+                        label = { Text("كود التفعيل") },
+                        placeholder = { Text("SM26-XXXX-XXXX-XXXX-XXXX") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        isError = reactivationError.isNotBlank(),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii)
+                    )
+                    if (reactivationError.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "❌ $reactivationError",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = newLicenseKey.trim().length >= 10,
+                    onClick = {
+                        val result = LicenseManager.verifyAndActivate(ctx, newLicenseKey)
+                        when (result) {
+                            is LicenseManager.ActivationResult.Success -> {
+                                licenseStatus = LicenseManager.getStatus(ctx)
+                                showReactivationDialog = false
+                                newLicenseKey = ""
+                                reactivationError = ""
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("✅ تم تجديد الاشتراك بنجاح")
+                                }
+                            }
+                            is LicenseManager.ActivationResult.Failure -> {
+                                reactivationError = result.reason
+                            }
+                        }
+                    }
+                ) { Text("تفعيل") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showReactivationDialog = false
+                    newLicenseKey = ""
+                    reactivationError = ""
+                }) { Text("إلغاء") }
+            }
+        )
+    }
 
+    // ═══════════════════════════════════
+    // حوار PIN (تعيين / تغيير)
+    // ═══════════════════════════════════
     if (showPinDialog) {
         var pin1 by remember { mutableStateOf("") }
         var pin2 by remember { mutableStateOf("") }
@@ -612,6 +738,9 @@ fun SettingsScreen(nav: NavController) {
         )
     }
 
+    // ═══════════════════════════════════
+    // حوار إزالة PIN
+    // ═══════════════════════════════════
     if (showRemovePinDialog) {
         var currentPin by remember { mutableStateOf("") }
         var error by remember { mutableStateOf("") }
@@ -658,6 +787,9 @@ fun SettingsScreen(nav: NavController) {
         )
     }
 
+    // ═══════════════════════════════════
+    // حوار كلمة مرور التشفير
+    // ═══════════════════════════════════
     if (showPasswordDialog) {
         var pw by remember { mutableStateOf("") }
         var error by remember { mutableStateOf("") }
@@ -718,6 +850,9 @@ fun SettingsScreen(nav: NavController) {
         )
     }
 
+    // ═══════════════════════════════════
+    // حوار تأكيد الاستعادة
+    // ═══════════════════════════════════
     if (showRestoreConfirmDialog && pendingRestoreUri != null) {
         var pw by remember { mutableStateOf("") }
         var error by remember { mutableStateOf("") }
@@ -800,7 +935,7 @@ fun SettingsScreen(nav: NavController) {
     }
 
     // ═══════════════════════════════════
-    // ★★★ المرحلة 1: تحذير أولي ★★★
+    // المرحلة 1: تحذير أولي
     // ═══════════════════════════════════
     if (showDeleteWarning) {
         AlertDialog(
@@ -856,9 +991,7 @@ fun SettingsScreen(nav: NavController) {
         )
     }
 
-    // ═══════════════════════════════════
-    // ★★★ المرحلة 2: اقتراح نسخة احتياطية ★★★
-    // ═══════════════════════════════════
+    // المرحلة 2: اقتراح نسخة احتياطية
     if (showDeleteBackupOffer) {
         AlertDialog(
             onDismissRequest = { showDeleteBackupOffer = false },
@@ -890,9 +1023,7 @@ fun SettingsScreen(nav: NavController) {
         )
     }
 
-    // ═══════════════════════════════════
-    // ★★★ المرحلة 3: تأكيد نهائي بكتابة كلمة ★★★
-    // ═══════════════════════════════════
+    // المرحلة 3: تأكيد نهائي
     if (showDeleteConfirm) {
         var typedWord by remember { mutableStateOf("") }
         val confirmWord = "حذف"
@@ -935,12 +1066,10 @@ fun SettingsScreen(nav: NavController) {
                 TextButton(
                     enabled = typedWord.trim() == confirmWord,
                     onClick = {
-                        // إذا كان PIN مفعّلاً، نطلب الرقم قبل الحذف
                         if (SecurityManager.isPinEnabled(ctx)) {
                             showDeleteConfirm = false
                             showDeletePinDialog = true
                         } else {
-                            // الحذف مباشرة
                             performDeleteAll(
                                 dao = dao,
                                 snackbar = snackbarHostState,
@@ -969,9 +1098,7 @@ fun SettingsScreen(nav: NavController) {
         )
     }
 
-    // ═══════════════════════════════════
-    // حوار PIN قبل الحذف (حماية إضافية)
-    // ═══════════════════════════════════
+    // حوار PIN قبل الحذف
     if (showDeletePinDialog) {
         var pin by remember { mutableStateOf("") }
         var error by remember { mutableStateOf("") }
@@ -1030,6 +1157,128 @@ fun SettingsScreen(nav: NavController) {
 }
 
 // ═══════════════════════════════════
+// بطاقة حالة الترخيص
+// ═══════════════════════════════════
+@Composable
+private fun LicenseStatusCard(
+    status: LicenseManager.LicenseStatus,
+    deviceId: String,
+    onCopyDeviceId: () -> Unit,
+    onReactivate: () -> Unit
+) {
+    val bgColor = when {
+        status.isExpired -> MaterialTheme.colorScheme.errorContainer
+        status.isGracePeriod -> MaterialTheme.colorScheme.tertiaryContainer
+        status.isActive -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val onBgColor = when {
+        status.isExpired -> MaterialTheme.colorScheme.onErrorContainer
+        status.isGracePeriod -> MaterialTheme.colorScheme.onTertiaryContainer
+        status.isActive -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = bgColor)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    when {
+                        status.isExpired -> "❌"
+                        status.isGracePeriod -> "⏰"
+                        status.isActive -> "✅"
+                        else -> "🔑"
+                    },
+                    fontSize = 26.sp
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "الترخيص",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = onBgColor
+                    )
+                    Text(
+                        status.message,
+                        fontSize = 12.sp,
+                        color = onBgColor.copy(alpha = 0.85f)
+                    )
+                }
+            }
+
+            if (status.expiresAt > 0L) {
+                Spacer(Modifier.height(10.dp))
+                val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                Text(
+                    "📅 ينتهي في: ${fmt.format(Date(status.expiresAt))}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = onBgColor
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Divider(color = onBgColor.copy(alpha = 0.3f))
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                "📱 كود الجهاز:",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = onBgColor
+            )
+            Spacer(Modifier.height(6.dp))
+
+            Surface(
+                Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    deviceId,
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.5.sp
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onCopyDeviceId,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = onBgColor
+                    )
+                ) {
+                    Text("📋 نسخ", fontSize = 12.sp)
+                }
+                Button(
+                    onClick = onReactivate,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("🔑 تجديد", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════
 // دالة حذف جميع البيانات
 // ═══════════════════════════════════
 private fun performDeleteAll(
@@ -1040,7 +1289,6 @@ private fun performDeleteAll(
 ) {
     scope.launch {
         try {
-            // ★ حذف جميع البيانات
             dao.clearAllGrades()
             dao.clearAllTeachers()
             dao.clearAllSubjects()
@@ -1049,7 +1297,7 @@ private fun performDeleteAll(
             dao.clearAllClasses()
             dao.clearSettings()
 
-            // ★ إعادة إنشاء الصفوف الـ 12 الافتراضية (حالة "التثبيت الأول")
+            // إعادة إنشاء الصفوف الـ 12
             val classNames = listOf(
                 "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس",
                 "السابع", "الثامن", "التاسع",
@@ -1070,7 +1318,7 @@ private fun performDeleteAll(
             onDone()
 
             snackbar.showSnackbar(
-                message = "✅ تم حذف جميع البيانات وإعادة التطبيق لحالته الأولى",
+                message = "✅ تم حذف جميع البيانات",
                 duration = SnackbarDuration.Long
             )
         } catch (e: Exception) {
