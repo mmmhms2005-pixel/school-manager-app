@@ -21,18 +21,16 @@ object PdfGenerator {
 
     private const val MARGIN = 25f
 
-    // الخطوط
     private const val FONT_SCHOOL = 17f
     private const val FONT_YEAR = 10f
     private const val FONT_TITLE = 13f
     private const val FONT_META = 12f
     private const val FONT_TABLE_HEADER = 9f
-    private const val FONT_TABLE_BODY_V = 8.5f  // عمودي
-    private const val FONT_TABLE_BODY_L = 7.5f  // أفقي
+    private const val FONT_TABLE_BODY_V = 8.5f
+    private const val FONT_TABLE_BODY_L = 7.5f
     private const val FONT_SIGNATURE = 10f
     private const val FONT_PAGE_NUM = 9f
 
-    // حدود الصفوف لكل صفحة
     private const val VERTICAL_ROWS_PER_PAGE = 35
     private const val LANDSCAPE_ROWS_PER_PAGE = 30
 
@@ -41,6 +39,7 @@ object PdfGenerator {
         val academicYear: String = "",
         val principalName: String = "",
         val teacherName: String = "",
+        val homeroomTeacherName: String = "",
         val logoBase64: String = ""
     )
 
@@ -55,7 +54,8 @@ object PdfGenerator {
         val columns: List<Column>,
         val rows: List<List<String>>,
         val isLandscape: Boolean = false,
-        val redColumnIndices: Set<Int> = emptySet()
+        val redColumnIndices: Set<Int> = emptySet(),
+        val isMultiSubject: Boolean = false
     )
 
     fun generate(
@@ -69,11 +69,8 @@ object PdfGenerator {
 
         reports.forEach { report ->
             val rowsPerPage = if (report.isLandscape) LANDSCAPE_ROWS_PER_PAGE else VERTICAL_ROWS_PER_PAGE
-            val chunks = if (report.rows.isEmpty()) {
-                listOf(emptyList())
-            } else {
-                report.rows.chunked(rowsPerPage)
-            }
+            val chunks = if (report.rows.isEmpty()) listOf(emptyList())
+                         else report.rows.chunked(rowsPerPage)
             val totalPages = chunks.size
 
             chunks.forEachIndexed { chunkIndex, chunk ->
@@ -95,7 +92,6 @@ object PdfGenerator {
                     totalPages = totalPages,
                     isLastPage = isLastPage
                 )
-
                 doc.finishPage(page)
                 absolutePageNumber++
             }
@@ -123,7 +119,7 @@ object PdfGenerator {
         var y = MARGIN + 5f
         val centerX = pageWidth / 2f
 
-        // ===== الشعار =====
+        // الشعار
         if (school.logoBase64.isNotBlank()) {
             try {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
@@ -134,94 +130,68 @@ object PdfGenerator {
                     val logoW: Float
                     val logoH: Float
                     if (bitmap.width > bitmap.height) {
-                        logoW = maxLogoSize
-                        logoH = maxLogoSize / ratio
+                        logoW = maxLogoSize; logoH = maxLogoSize / ratio
                     } else {
-                        logoW = maxLogoSize * ratio
-                        logoH = maxLogoSize
+                        logoW = maxLogoSize * ratio; logoH = maxLogoSize
                     }
                     val left = centerX - logoW / 2f
-                    val destRect = RectF(left, y, left + logoW, y + logoH)
-                    canvas.drawBitmap(bitmap, null, destRect, null)
+                    canvas.drawBitmap(bitmap, null, RectF(left, y, left + logoW, y + logoH), null)
                     y += logoH + 10f
                 }
-            } catch (e: Exception) {
-                // تجاهل
-            }
+            } catch (e: Exception) { }
         }
 
-        // ===== اسم المدرسة =====
+        // اسم المدرسة
         val schoolPaint = TextPaint().apply {
-            color = Color.BLACK
-            textSize = FONT_SCHOOL
-            isFakeBoldText = true
+            color = Color.BLACK; textSize = FONT_SCHOOL; isFakeBoldText = true
         }
         drawCenteredText(canvas, school.schoolName.ifBlank { "اسم المدرسة" }, centerX, y + FONT_SCHOOL, schoolPaint)
         y += FONT_SCHOOL + 5f
 
-        // ===== العام الدراسي =====
+        // العام الدراسي
         if (school.academicYear.isNotBlank()) {
-            val yearPaint = TextPaint().apply {
-                color = Color.DKGRAY
-                textSize = FONT_YEAR
-            }
+            val yearPaint = TextPaint().apply { color = Color.DKGRAY; textSize = FONT_YEAR }
             drawCenteredText(canvas, school.academicYear, centerX, y + FONT_YEAR, yearPaint)
             y += FONT_YEAR + 6f
         }
 
         // خط فاصل
-        val linePaint = Paint().apply {
-            color = Color.rgb(15, 118, 110)
-            strokeWidth = 1.5f
-        }
-        canvas.drawLine(MARGIN, y, pageWidth - MARGIN, y, linePaint)
+        canvas.drawLine(MARGIN, y, pageWidth - MARGIN, y, Paint().apply {
+            color = Color.rgb(15, 118, 110); strokeWidth = 1.5f
+        })
         y += 12
 
-        // ===== عنوان التقرير + المعلومات =====
+        // العنوان + المعلومات
         val titlePaint = TextPaint().apply {
-            color = Color.BLACK
-            textSize = FONT_TITLE
-            textAlign = Paint.Align.RIGHT
-            isFakeBoldText = true
+            color = Color.BLACK; textSize = FONT_TITLE; textAlign = Paint.Align.RIGHT; isFakeBoldText = true
         }
         canvas.drawText(report.title, pageWidth - MARGIN, y + FONT_TITLE, titlePaint)
 
         val metaPaint = TextPaint().apply {
-            color = Color.rgb(50, 50, 50)
-            textSize = FONT_META
-            textAlign = Paint.Align.LEFT
-            isFakeBoldText = true
+            color = Color.rgb(50, 50, 50); textSize = FONT_META; textAlign = Paint.Align.LEFT; isFakeBoldText = true
         }
         canvas.drawText(report.meta, MARGIN, y + FONT_META, metaPaint)
 
         y += FONT_TITLE + 14
 
-        // ===== الجدول =====
+        // الجدول
         val tableWidth = pageWidth - 2 * MARGIN
         val colWidths = report.columns.map { it.width * tableWidth }
-
         val headerHeight = 25f
 
-        // المساحة المتبقية لحساب ارتفاع الصف
-        val reservedBottom = if (isLastPage) 90f else 30f  // توقيعات + رقم الصفحة
+        val reservedBottom = if (isLastPage) 90f else 30f
         val availableForRows = pageHeight - y - headerHeight - MARGIN - reservedBottom
         val rowsCount = rowsChunk.size.coerceAtLeast(1)
         val rowHeight = (availableForRows / rowsCount).coerceIn(9f, 20f)
 
         val headerPaint = TextPaint().apply {
-            color = Color.BLACK
-            textSize = FONT_TABLE_HEADER
-            textAlign = Paint.Align.CENTER
-            isFakeBoldText = true
+            color = Color.BLACK; textSize = FONT_TABLE_HEADER; textAlign = Paint.Align.CENTER; isFakeBoldText = true
         }
         val cellBgPaint = Paint().apply { color = Color.rgb(241, 245, 249) }
         val borderPaint = Paint().apply {
-            color = Color.rgb(200, 200, 200)
-            style = Paint.Style.STROKE
-            strokeWidth = 0.5f
+            color = Color.rgb(200, 200, 200); style = Paint.Style.STROKE; strokeWidth = 0.5f
         }
 
-        // رأس الجدول
         canvas.drawRect(MARGIN, y, pageWidth - MARGIN, y + headerHeight, cellBgPaint)
         var x = pageWidth - MARGIN
         report.columns.forEachIndexed { i, col ->
@@ -233,18 +203,12 @@ object PdfGenerator {
         }
         y += headerHeight
 
-        // صفوف البيانات
         val bodyFontSize = if (report.isLandscape) FONT_TABLE_BODY_L else FONT_TABLE_BODY_V
         val bodyPaint = TextPaint().apply {
-            color = Color.BLACK
-            textSize = bodyFontSize
-            textAlign = Paint.Align.CENTER
+            color = Color.BLACK; textSize = bodyFontSize; textAlign = Paint.Align.CENTER
         }
         val redBodyPaint = TextPaint().apply {
-            color = Color.rgb(180, 30, 30)
-            textSize = bodyFontSize
-            textAlign = Paint.Align.CENTER
-            isFakeBoldText = true
+            color = Color.rgb(180, 30, 30); textSize = bodyFontSize; textAlign = Paint.Align.CENTER; isFakeBoldText = true
         }
 
         rowsChunk.forEach { row ->
@@ -260,25 +224,15 @@ object PdfGenerator {
             y += rowHeight
         }
 
-        // ===== التوقيعات (فقط في الصفحة الأخيرة) =====
         if (isLastPage) {
-            drawSignatures(canvas, pageWidth, pageHeight, school)
+            drawSignatures(canvas, pageWidth, pageHeight, school, report.isMultiSubject)
         }
 
-        // ===== رقم الصفحة (فقط إذا كان هناك أكثر من صفحة) =====
         if (totalPages > 1) {
             val pageNumPaint = TextPaint().apply {
-                color = Color.DKGRAY
-                textSize = FONT_PAGE_NUM
-                textAlign = Paint.Align.CENTER
-                isFakeBoldText = true
+                color = Color.DKGRAY; textSize = FONT_PAGE_NUM; textAlign = Paint.Align.CENTER; isFakeBoldText = true
             }
-            canvas.drawText(
-                "صفحة $pageNumber من $totalPages",
-                centerX,
-                pageHeight - 18f,
-                pageNumPaint
-            )
+            canvas.drawText("صفحة $pageNumber من $totalPages", centerX, pageHeight - 18f, pageNumPaint)
         }
     }
 
@@ -299,30 +253,28 @@ object PdfGenerator {
         canvas.drawText(text, boxLeft + boxWidth / 2f, startY, linePaint)
     }
 
-    private fun drawSignatures(canvas: Canvas, pageWidth: Int, pageHeight: Int, school: SchoolInfo) {
+    private fun drawSignatures(
+        canvas: Canvas,
+        pageWidth: Int,
+        pageHeight: Int,
+        school: SchoolInfo,
+        isMultiSubject: Boolean
+    ) {
         val signLineY = pageHeight - 75f
 
         val labelPaint = TextPaint().apply {
-            color = Color.BLACK
-            textSize = FONT_SIGNATURE
-            textAlign = Paint.Align.CENTER
-            isFakeBoldText = true
+            color = Color.BLACK; textSize = FONT_SIGNATURE; textAlign = Paint.Align.CENTER; isFakeBoldText = true
         }
         val signHintPaint = TextPaint().apply {
-            color = Color.DKGRAY
-            textSize = 9f
-            textAlign = Paint.Align.RIGHT
-            isFakeBoldText = true
+            color = Color.DKGRAY; textSize = 9f; textAlign = Paint.Align.RIGHT; isFakeBoldText = true
         }
         val namePaint = TextPaint().apply {
-            color = Color.rgb(40, 40, 40)
-            textSize = FONT_SIGNATURE
-            textAlign = Paint.Align.CENTER
+            color = Color.rgb(40, 40, 40); textSize = FONT_SIGNATURE; textAlign = Paint.Align.CENTER
         }
-        val linePaint = Paint().apply {
-            color = Color.DKGRAY
-            strokeWidth = 0.7f
+        val emptyLinePaint = TextPaint().apply {
+            color = Color.rgb(150, 150, 150); textSize = 10f; textAlign = Paint.Align.CENTER
         }
+        val linePaint = Paint().apply { color = Color.DKGRAY; strokeWidth = 0.7f }
 
         val third = (pageWidth - 2 * MARGIN) / 3f
         val positions = listOf(
@@ -331,8 +283,11 @@ object PdfGenerator {
             MARGIN + third / 2f
         )
 
-        val labels = listOf("معلم المادة", "مدير المدرسة", "الختم الرسمي")
-        val values = listOf(school.teacherName, school.principalName, "")
+        val firstLabel = if (isMultiSubject) "مربي الصف" else "معلم المادة"
+        val firstValue = if (isMultiSubject) school.homeroomTeacherName else school.teacherName
+
+        val labels = listOf(firstLabel, "مدير المدرسة", "الختم الرسمي")
+        val values = listOf(firstValue, school.principalName, "")
 
         positions.forEachIndexed { i, x ->
             canvas.drawLine(x - third * 0.32f, signLineY, x + third * 0.32f, signLineY, linePaint)
@@ -343,6 +298,8 @@ object PdfGenerator {
 
             if (values[i].isNotBlank()) {
                 canvas.drawText(values[i], x, signLineY + 32, namePaint)
+            } else {
+                canvas.drawText("_______________", x, signLineY + 32, emptyLinePaint)
             }
         }
     }
