@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.GradeCalculator
+import com.example.schoolmanager.data.HomeroomTeacherHelper
 import com.example.schoolmanager.data.PdfGenerator
 import com.example.schoolmanager.data.SchoolDao
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +51,7 @@ fun FinalResultsScreen(
     val students by dao.students().collectAsState(initial = emptyList())
     val allGrades by dao.grades().collectAsState(initial = emptyList())
     val settings by dao.settings().collectAsState(initial = null)
+    val teachers by dao.teachers().collectAsState(initial = emptyList())
 
     var classId by remember { mutableStateOf("") }
     var sectionId by remember { mutableStateOf("") }
@@ -154,17 +156,15 @@ fun FinalResultsScreen(
             onClick = {
                 scope.launch {
                     try {
-                        // ★ حساب عروض الأعمدة بدقة (المجموع = 1.0 بالضبط)
                         val cols = mutableListOf<PdfGenerator.Column>()
 
-                        // عروض ثابتة
-                        val rankNoW = 0.030f       // #
-                        val numberW = 0.055f       // رقم
-                        val nameW = 0.160f         // الاسم
-                        val totalW = 0.080f        // المجموع
-                        val avgW = 0.070f          // المعدل
-                        val rankW = 0.070f         // الترتيب
-                        val statusW = 0.070f       // الحالة
+                        val rankNoW = 0.030f
+                        val numberW = 0.055f
+                        val nameW = 0.160f
+                        val totalW = 0.080f
+                        val avgW = 0.070f
+                        val rankW = 0.070f
+                        val statusW = 0.070f
 
                         val fixedSum = rankNoW + numberW + nameW + totalW + avgW + rankW + statusW
                         val remainingForSubjects = 1.0f - fixedSum
@@ -196,14 +196,21 @@ fun FinalResultsScreen(
                             row
                         }
 
+                        val homeroomName = HomeroomTeacherHelper.getName(
+                            classId = classId,
+                            sectionId = sectionId,
+                            classes = classes,
+                            teachers = teachers
+                        )
+
                         val schoolInfo = PdfGenerator.SchoolInfo(
                             schoolName = settings?.schoolName ?: "",
                             academicYear = settings?.academicYear ?: "",
                             principalName = settings?.principalName ?: "",
+                            homeroomTeacherName = homeroomName,
                             logoBase64 = settings?.logoBase64 ?: ""
                         )
 
-                        // ★ أفقي دائماً إذا كان عدد المواد 5 أو أكثر
                         val isLandscape = availableSubjects.size >= 5
 
                         val reportData = PdfGenerator.ReportData(
@@ -218,9 +225,10 @@ fun FinalResultsScreen(
                             rows = rows,
                             isLandscape = isLandscape,
                             redColumnIndices = setOf(
-                                cols.size - 4,  // المجموع
-                                cols.size - 1   // الحالة
-                            )
+                                cols.size - 4,
+                                cols.size - 1
+                            ),
+                            isMultiSubject = true
                         )
 
                         val file = withContext(Dispatchers.IO) {
