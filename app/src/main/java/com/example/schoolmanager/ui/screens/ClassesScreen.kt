@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -21,8 +23,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.schoolmanager.SchoolApplication
+import com.example.schoolmanager.data.HomeroomTeacherHelper
 import com.example.schoolmanager.data.SchoolClass
 import com.example.schoolmanager.data.Section
+import com.example.schoolmanager.data.Teacher
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -36,6 +40,7 @@ fun ClassesScreen(nav: NavController) {
 
     val classes by dao.classes().collectAsState(initial = emptyList())
     val sections by dao.sections().collectAsState(initial = emptyList())
+    val teachers by dao.teachers().collectAsState(initial = emptyList())
     val students by dao.students().collectAsState(initial = emptyList())
 
     var showClassDialog by remember { mutableStateOf(false) }
@@ -68,7 +73,15 @@ fun ClassesScreen(nav: NavController) {
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { editing = null; showClassDialog = true },
+                onClick = {
+                    if (teachers.isEmpty()) {
+                        scope.launch {
+                            // سيُنبَّه المستخدم داخل النافذة
+                        }
+                    }
+                    editing = null
+                    showClassDialog = true
+                },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
                 text = { Text("إضافة صف") }
             )
@@ -82,7 +95,7 @@ fun ClassesScreen(nav: NavController) {
                 )
             ) {
                 Text(
-                    "📌 اضغط 📋 في الأعلى لإضافة أو حذف الشعب. ثم حدد لكل صف شعبه.",
+                    "📌 اضغط 📋 في الأعلى لإضافة أو حذف الشعب. ثم حدد لكل صف شعبه ومربيها (إجباري).",
                     Modifier.padding(12.dp),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -99,6 +112,7 @@ fun ClassesScreen(nav: NavController) {
                     ClassCard(
                         cls = cls,
                         sections = sections,
+                        teachers = teachers,
                         studentCount = students.count { it.classId == cls.id },
                         onEdit = { editing = cls; showClassDialog = true },
                         onDelete = { deleting = cls }
@@ -112,6 +126,7 @@ fun ClassesScreen(nav: NavController) {
         ClassDialog(
             cls = editing,
             sections = sections,
+            teachers = teachers,
             onDismiss = { showClassDialog = false },
             onSave = { c ->
                 scope.launch {
@@ -133,7 +148,6 @@ fun ClassesScreen(nav: NavController) {
                         fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     Spacer(Modifier.height(12.dp))
 
-                    // حقل الإضافة
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = newSectionName,
@@ -148,27 +162,21 @@ fun ClassesScreen(nav: NavController) {
                                 val n = newSectionName.trim()
                                 if (n.isNotBlank() && sections.none { it.name == n }) {
                                     scope.launch {
-                                        dao.insertSection(Section(
-                                            id = UUID.randomUUID().toString(),
-                                            name = n
-                                        ))
+                                        dao.insertSection(Section(id = UUID.randomUUID().toString(), name = n))
                                     }
                                     newSectionName = ""
                                 }
                             },
-                            enabled = newSectionName.isNotBlank() &&
-                                    sections.none { it.name == newSectionName.trim() }
+                            enabled = newSectionName.isNotBlank() && sections.none { it.name == newSectionName.trim() }
                         ) { Text("إضافة") }
                     }
 
                     Spacer(Modifier.height(16.dp))
-                    Text("الشعب الحالية (${sections.size}):",
-                        fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("الشعب الحالية (${sections.size}):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(Modifier.height(8.dp))
 
                     if (sections.isEmpty()) {
-                        Text("لا توجد شعب بعد.", fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.secondary)
+                        Text("لا توجد شعب بعد.", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     } else {
                         sections.forEach { s ->
                             Row(
@@ -216,27 +224,40 @@ fun ClassesScreen(nav: NavController) {
 fun ClassCard(
     cls: SchoolClass,
     sections: List<Section>,
+    teachers: List<Teacher>,
     studentCount: Int,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val allowedSections = cls.sectionIds.split(",").filter { it.isNotBlank() }
     val classSections = sections.filter { it.id in allowedSections }
+    val homeroomMap = remember(cls.homeroomTeachers) {
+        HomeroomTeacherHelper.parse(cls.homeroomTeachers)
+    }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp)) {
             Text(cls.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Spacer(Modifier.height(6.dp))
-            Text("$studentCount طالب", fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.secondary)
+            Text("$studentCount طالب", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
             Spacer(Modifier.height(8.dp))
 
             if (classSections.isEmpty()) {
-                Text("لا توجد شعب", fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.secondary)
+                val classWideT = homeroomMap[HomeroomTeacherHelper.classWideKey()]
+                val tName = teachers.find { it.id == classWideT }?.name
+                Text(
+                    if (tName != null) "مربي الصف: $tName" else "مربي الصف: غير محدد",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    classSections.forEach { s ->
+                classSections.forEach { s ->
+                    val tId = homeroomMap[s.id]
+                    val tName = teachers.find { it.id == tId }?.name
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
                             shape = MaterialTheme.shapes.small
@@ -245,6 +266,12 @@ fun ClassCard(
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            if (tName != null) "← $tName" else "← غير محدد",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                     }
                 }
             }
@@ -255,8 +282,7 @@ fun ClassCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("ترتيب: ${cls.order}", fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.secondary)
+                Text("ترتيب: ${cls.order}", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
                 Row {
                     IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Default.Edit, contentDescription = "تعديل",
@@ -277,6 +303,7 @@ fun ClassCard(
 fun ClassDialog(
     cls: SchoolClass?,
     sections: List<Section>,
+    teachers: List<Teacher>,
     onDismiss: () -> Unit,
     onSave: (SchoolClass) -> Unit
 ) {
@@ -285,12 +312,49 @@ fun ClassDialog(
     var selectedSections by remember {
         mutableStateOf(cls?.sectionIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList())
     }
+    var homeroomMap by remember {
+        mutableStateOf<Map<String, String>>(
+            HomeroomTeacherHelper.parse(cls?.homeroomTeachers ?: "")
+        )
+    }
+
+    // ★ التحقق من الإجبارية
+    val hasTeachers = teachers.isNotEmpty()
+    val allSectionsHaveTeacher = if (selectedSections.isEmpty()) {
+        // بلا شعب: يجب تحديد مربي الصف كاملاً
+        !homeroomMap[HomeroomTeacherHelper.classWideKey()].isNullOrBlank()
+    } else {
+        // مع شعب: كل شعبة يجب أن يكون لها مربي
+        selectedSections.all { sid ->
+            !homeroomMap[sid].isNullOrBlank()
+        }
+    }
+    val canSave = name.isNotBlank() && order.isNotBlank() && hasTeachers && allSectionsHaveTeacher
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (cls == null) "إضافة صف" else "تعديل الصف") },
         text = {
-            Column(Modifier.fillMaxWidth().padding(4.dp)) {
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            ) {
+                if (!hasTeachers) {
+                    Card(
+                        Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            "⚠️ لا يوجد معلمون. أضف معلمين أولاً من شاشة المعلمين.",
+                            Modifier.padding(10.dp),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -307,44 +371,88 @@ fun ClassDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
+
                 Spacer(Modifier.height(12.dp))
-                Text("الشعب المتاحة في هذا الصف:", fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp)
+                Text("الشعب المتاحة في هذا الصف:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Spacer(Modifier.height(6.dp))
 
                 if (sections.isEmpty()) {
                     Text("لا توجد شعب — أضف من أيقونة 📋",
                         fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                    Spacer(Modifier.height(12.dp))
                 } else {
                     sections.forEach { s ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = s.id in selectedSections,
-                                onCheckedChange = { checked ->
-                                    selectedSections = if (checked)
-                                        selectedSections + s.id
-                                    else
-                                        selectedSections - s.id
-                                }
-                            )
-                            Text(s.name)
+                        val isChecked = s.id in selectedSections
+                        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { checked ->
+                                        selectedSections = if (checked)
+                                            selectedSections + s.id
+                                        else
+                                            selectedSections - s.id
+                                    }
+                                )
+                                Text(s.name, fontSize = 14.sp)
+                            }
+                            if (isChecked) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "مربي شعبة ${s.name} *",
+                                    fontSize = 11.sp,
+                                    color = if (homeroomMap[s.id].isNullOrBlank())
+                                        MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.secondary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                TeacherDropdown(
+                                    teachers = teachers,
+                                    selectedId = homeroomMap[s.id] ?: "",
+                                    onSelect = { tid ->
+                                        homeroomMap = homeroomMap + (s.id to tid)
+                                    },
+                                    label = "اختر المربي"
+                                )
+                            }
                         }
                     }
+                }
+
+                if (selectedSections.isEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("مربي الصف (للصف كاملاً) *:",
+                        fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                        color = if (homeroomMap[HomeroomTeacherHelper.classWideKey()].isNullOrBlank())
+                            MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.height(6.dp))
+                    TeacherDropdown(
+                        teachers = teachers,
+                        selectedId = homeroomMap[HomeroomTeacherHelper.classWideKey()] ?: "",
+                        onSelect = { tid ->
+                            homeroomMap = homeroomMap + (HomeroomTeacherHelper.classWideKey() to tid)
+                        },
+                        label = "اختر مربي الصف"
+                    )
                 }
             }
         },
         confirmButton = {
             TextButton(
-                enabled = name.isNotBlank() && order.isNotBlank(),
+                enabled = canSave,
                 onClick = {
+                    // تنظيف: حذف المربين للشعب غير المحددة
+                    val cleanedMap = homeroomMap.filterKeys { key ->
+                        key == HomeroomTeacherHelper.classWideKey() || key in selectedSections
+                    }
                     onSave(SchoolClass(
                         id = cls?.id ?: UUID.randomUUID().toString(),
                         name = name.trim(),
                         order = order.toIntOrNull() ?: 1,
-                        sectionIds = selectedSections.joinToString(",")
+                        sectionIds = selectedSections.joinToString(","),
+                        homeroomTeachers = HomeroomTeacherHelper.serialize(cleanedMap)
                     ))
                 }
             ) { Text("حفظ") }
@@ -353,4 +461,48 @@ fun ClassDialog(
             TextButton(onClick = onDismiss) { Text("إلغاء") }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TeacherDropdown(
+    teachers: List<Teacher>,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+    label: String
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = teachers.find { it.id == selectedId }?.name
+
+    Box(Modifier.fillMaxWidth()) {
+        ExposedDropdownMenuBox(expanded, { expanded = !expanded }) {
+            OutlinedTextField(
+                value = selectedName ?: label,
+                onValueChange = {}, readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                singleLine = true,
+                isError = selectedId.isBlank()
+            )
+            ExposedDropdownMenu(expanded, { expanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("— بدون —") },
+                    onClick = { onSelect(""); expanded = false }
+                )
+                if (teachers.isEmpty()) {
+                    DropdownMenuItem(
+                        text = { Text("لا يوجد معلمون") },
+                        onClick = { expanded = false }
+                    )
+                }
+                teachers.forEach { t ->
+                    DropdownMenuItem(
+                        text = { Text(t.name) },
+                        onClick = { onSelect(t.id); expanded = false }
+                    )
+                }
+            }
+        }
+    }
 }
