@@ -12,7 +12,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SchoolClass::class, Section::class, Student::class,
         Subject::class, Teacher::class, Grade::class, SchoolSettings::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -21,10 +21,9 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
 
-        // ترحيل من إصدار 1 إلى 2: إضافة عمود assignments
+        // v1 → v2: إضافة assignments للـ teachers
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // 1) إنشاء جدول teachers جديد
                 db.execSQL(
                     """
                     CREATE TABLE teachers_new (
@@ -38,8 +37,6 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
-
-                // 2) نقل البيانات القديمة (تحويلها إلى صيغة assignments)
                 val cursor = db.query(
                     "SELECT id, name, phone, specialization, notes, subjectIds, classIds, sectionIds FROM teachers"
                 )
@@ -54,24 +51,25 @@ abstract class AppDatabase : RoomDatabase() {
                     val classes = cursor.getString(6)
                         .split(",").map { it.trim() }.filter { it.isNotBlank() }
                     val sections = cursor.getString(7)
-
                     val assignments = mutableListOf<String>()
-                    subjects.forEach { s ->
-                        classes.forEach { c ->
-                            assignments.add("$s:$c")
-                        }
-                    }
-
+                    subjects.forEach { s -> classes.forEach { c -> assignments.add("$s:$c") } }
                     db.execSQL(
                         "INSERT INTO teachers_new (id, name, phone, specialization, notes, sectionIds, assignments) VALUES (?, ?, ?, ?, ?, ?, ?)",
                         arrayOf(id, name, phone, spec, notes, sections, assignments.joinToString(","))
                     )
                 }
                 cursor.close()
-
-                // 3) استبدال الجدول القديم
                 db.execSQL("DROP TABLE teachers")
                 db.execSQL("ALTER TABLE teachers_new RENAME TO teachers")
+            }
+        }
+
+        // v2 → v3: إضافة homeroomTeachers للـ school_classes
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE school_classes ADD COLUMN homeroomTeachers TEXT NOT NULL DEFAULT ''"
+                )
             }
         }
 
@@ -82,7 +80,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "school_db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }
