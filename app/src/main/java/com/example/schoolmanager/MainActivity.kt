@@ -10,14 +10,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.schoolmanager.data.LicenseManager
 import com.example.schoolmanager.data.SecurityManager
 import com.example.schoolmanager.ui.screens.AboutScreen
+import com.example.schoolmanager.ui.screens.ActivationScreen
 import com.example.schoolmanager.ui.screens.ClassesScreen
 import com.example.schoolmanager.ui.screens.DashboardScreen
 import com.example.schoolmanager.ui.screens.GradesScreen
@@ -79,12 +82,38 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppRoot() {
-    val enabled = SecurityManager.pinEnabledState.value
+    val ctx = LocalContext.current
+
+    // ═══════════════════════════════════
+    // ★ حالة الترخيص
+    // ═══════════════════════════════════
+    var licenseOk by remember { mutableStateOf(LicenseManager.isActivated(ctx)) }
+
+    // ═══════════════════════════════════
+    // ★ حالة القفل بالـ PIN
+    // ═══════════════════════════════════
+    val pinEnabled = SecurityManager.pinEnabledState.value
     val locked = SecurityManager.isLockedState.value
 
-    if (enabled && locked) {
+    // ═══════════════════════════════════
+    // ★ الترتيب المهم:
+    // 1. إذا لم يُفعَّل → شاشة التفعيل
+    // 2. إذا كان PIN مفعَّلاً ومقفلاً → شاشة القفل
+    // 3. وإلا → التطبيق
+    // ═══════════════════════════════════
+
+    if (!licenseOk) {
+        // ★ الشاشة الأولى: التفعيل
+        ActivationScreen(
+            onActivated = {
+                licenseOk = true
+            }
+        )
+    } else if (pinEnabled && locked) {
+        // ★ الشاشة الثانية: القفل بالـ PIN
         LockScreen()
     } else {
+        // ★ الشاشة الثالثة: التطبيق
         AppNav()
     }
 }
