@@ -74,10 +74,10 @@ fun StudentPeriodsScreen(
 
     val canGenerate = classId.isNotBlank() && studentId.isNotBlank() && subjectId.isNotBlank()
 
-    // حساب النتائج السنوية
+    // ★ حساب النتائج مع الدرجات التفصيلية
     val results = remember(studentId, subjectId, allGrades) {
         if (studentId.isBlank() || subjectId.isBlank()) emptyList()
-        else buildPeriodResults(selectedStudent?.id ?: "", subjectId, allGrades)
+        else buildPeriodResults(studentId, subjectId, allGrades)
     }
 
     Column(
@@ -192,15 +192,15 @@ fun StudentPeriodsScreen(
                     try {
                         val rows = buildPeriodRows(results)
                         val cols = listOf(
-                            PdfGenerator.Column("#", 0.05f),
-                            PdfGenerator.Column("الفترة", 0.20f),
-                            PdfGenerator.Column("واجب", 0.09f),
-                            PdfGenerator.Column("شفهي", 0.09f),
-                            PdfGenerator.Column("غياب", 0.08f),
-                            PdfGenerator.Column("مواظبة", 0.10f),
-                            PdfGenerator.Column("تحريري", 0.10f),
+                            PdfGenerator.Column("#", 0.04f),
+                            PdfGenerator.Column("الفترة", 0.16f),
+                            PdfGenerator.Column("واجب", 0.08f),
+                            PdfGenerator.Column("شفهي", 0.08f),
+                            PdfGenerator.Column("غياب", 0.07f),
+                            PdfGenerator.Column("مواظبة", 0.09f),
+                            PdfGenerator.Column("تحريري", 0.09f),
                             PdfGenerator.Column("المجموع", 0.10f),
-                            PdfGenerator.Column("التقدير", 0.19f)
+                            PdfGenerator.Column("التقدير", 0.14f)
                         )
 
                         val selectedTeacher = allTeachers.firstOrNull { t ->
@@ -322,6 +322,11 @@ fun StudentPeriodsScreen(
 
 data class PeriodResult(
     val periodName: String,
+    val homework: String,
+    val oral: String,
+    val absence: String,
+    val attendance: String,
+    val written: String,
     val total: Int,
     val rating: String,
     val isSummary: Boolean = false
@@ -341,6 +346,7 @@ private fun buildPeriodResults(
             it.subjectId == subjectId &&
             it.period == p
         }
+        val isExam = GradeCalculator.isExam(p)
         val computed = GradeCalculator.compute(
             period = p,
             homework = g?.homework ?: 0,
@@ -349,11 +355,33 @@ private fun buildPeriodResults(
             written = g?.written ?: 0
         )
         totals[p] = computed.total
-        out.add(PeriodResult(
-            periodName = name,
-            total = computed.total,
-            rating = ratingFor(computed.total, GradeCalculator.isExam(p))
-        ))
+
+        // ★ عرض الدرجات الفعلية لكل فترة
+        if (isExam) {
+            // فترة امتحان: التحريري فقط
+            out.add(PeriodResult(
+                periodName = name,
+                homework = "-",
+                oral = "-",
+                absence = "-",
+                attendance = "-",
+                written = "${computed.written}",
+                total = computed.total,
+                rating = ratingFor(computed.total, true)
+            ))
+        } else {
+            // فترة شهرية: كل الحقول
+            out.add(PeriodResult(
+                periodName = name,
+                homework = "${computed.homework}",
+                oral = "${computed.oral}",
+                absence = "${computed.absence}",
+                attendance = "${computed.attendance}",
+                written = "${computed.written}",
+                total = computed.total,
+                rating = ratingFor(computed.total, false)
+            ))
+        }
     }
 
     // حساب النصف الأول = متوسط (1,2,3) + امتحان 4
@@ -368,12 +396,22 @@ private fun buildPeriodResults(
 
     out.add(PeriodResult(
         periodName = "النصف الأول (من 50)",
+        homework = "-",
+        oral = "-",
+        absence = "-",
+        attendance = "-",
+        written = "-",
         total = sem1,
         rating = ratingFor(sem1, false, 50),
         isSummary = true
     ))
     out.add(PeriodResult(
         periodName = "نهاية العام (من 100)",
+        homework = "-",
+        oral = "-",
+        absence = "-",
+        attendance = "-",
+        written = "-",
         total = final,
         rating = ratingFor(final, false, 100),
         isSummary = true
@@ -387,7 +425,11 @@ private fun buildPeriodRows(results: List<PeriodResult>): List<List<String>> {
         listOf(
             "${idx + 1}",
             r.periodName,
-            "-", "-", "-", "-", "-",
+            r.homework,
+            r.oral,
+            r.absence,
+            r.attendance,
+            r.written,
             "${r.total}",
             r.rating
         )
