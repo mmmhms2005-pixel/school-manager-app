@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.GradeCalculator
+import com.example.schoolmanager.data.HomeroomTeacherHelper
 import com.example.schoolmanager.data.PdfGenerator
 import com.example.schoolmanager.data.SchoolDao
 import kotlinx.coroutines.CoroutineScope
@@ -28,12 +29,12 @@ data class Analytics(
     val studentCount: Int,
     val subjectCount: Int,
     val avgPerSubject: Map<String, Double>,
-    val highestPerSubject: Map<String, Pair<String, Int>>, // اسم الطالب، الدرجة
+    val highestPerSubject: Map<String, Pair<String, Int>>,
     val lowestPerSubject: Map<String, Pair<String, Int>>,
     val passCount: Int,
     val failCount: Int,
-    val topStudents: List<Triple<Int, String, Int>>,  // rank، name، total
-    val gradeDistribution: Map<String, Int>  // "ممتاز" → عدد
+    val topStudents: List<Triple<Int, String, Int>>,
+    val gradeDistribution: Map<String, Int>
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +53,7 @@ fun AnalyticsScreen(
     val students by dao.students().collectAsState(initial = emptyList())
     val allGrades by dao.grades().collectAsState(initial = emptyList())
     val settings by dao.settings().collectAsState(initial = null)
+    val teachers by dao.teachers().collectAsState(initial = emptyList())
 
     var classId by remember { mutableStateOf("") }
     var sectionId by remember { mutableStateOf("") }
@@ -87,7 +89,6 @@ fun AnalyticsScreen(
     Column(
         Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState())
     ) {
-        // الصف + الشعبة
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.weight(1f)) {
                 ExposedDropdownMenuBox(classExpanded, { classExpanded = !classExpanded }) {
@@ -144,7 +145,6 @@ fun AnalyticsScreen(
                     try {
                         val a = analytics ?: return@launch
 
-                        // بناء جدول الإحصائيات
                         val cols = listOf(
                             PdfGenerator.Column("المادة", 0.30f),
                             PdfGenerator.Column("المتوسط", 0.15f),
@@ -162,18 +162,26 @@ fun AnalyticsScreen(
                                 String.format("%.1f", avg),
                                 high?.let { "${it.first} (${it.second})" } ?: "-",
                                 low?.let { "${it.first} (${it.second})" } ?: "-",
-                                "-" // نسبة النجاح لكل مادة (يمكن إضافتها لاحقاً)
+                                "-"
                             )
                         }
+
+                        val homeroomName = HomeroomTeacherHelper.getName(
+                            classId = classId,
+                            sectionId = sectionId,
+                            classes = classes,
+                            teachers = teachers
+                        )
 
                         val schoolInfo = PdfGenerator.SchoolInfo(
                             schoolName = settings?.schoolName ?: "",
                             academicYear = settings?.academicYear ?: "",
                             principalName = settings?.principalName ?: "",
+                            homeroomTeacherName = homeroomName,
                             logoBase64 = settings?.logoBase64 ?: ""
                         )
 
-                        // ── الصفحة 1: ملخص إحصائي عام
+                        // ── الصفحة 1: ملخص عام
                         val page1Rows = mutableListOf<List<String>>()
                         page1Rows.add(listOf("عدد الطلاب", "${a.studentCount}"))
                         page1Rows.add(listOf("عدد المواد", "${a.subjectCount}"))
@@ -203,7 +211,8 @@ fun AnalyticsScreen(
                                 meta = "الصف: ${classes.find { it.id == classId }?.name ?: ""}  |  الشعبة: ${sections.find { it.id == sectionId }?.name ?: "الكل"}",
                                 columns = page1Cols,
                                 rows = page1Rows,
-                                isLandscape = false
+                                isLandscape = false,
+                                isMultiSubject = true
                             )
                         )
                         reports.add(
@@ -212,7 +221,8 @@ fun AnalyticsScreen(
                                 meta = "متوسط وأعلى وأدنى درجة لكل مادة",
                                 columns = cols,
                                 rows = rows,
-                                isLandscape = false
+                                isLandscape = false,
+                                isMultiSubject = true
                             )
                         )
                         if (a.topStudents.isNotEmpty()) {
@@ -223,7 +233,8 @@ fun AnalyticsScreen(
                                     columns = page2Cols,
                                     rows = page2Rows,
                                     isLandscape = false,
-                                    redColumnIndices = setOf(2)
+                                    redColumnIndices = setOf(2),
+                                    isMultiSubject = true
                                 )
                             )
                         }
@@ -239,7 +250,7 @@ fun AnalyticsScreen(
 
                         val uri = FileProvider.getUriForFile(
                             ctx,
-                            "${packageName(ctx)}.fileprovider",
+                            "${ctx.packageName}.fileprovider",
                             file
                         )
                         val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -283,9 +294,7 @@ fun AnalyticsScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // معاينة
         if (analytics != null) {
-            // ملخص عام
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
                     Text("📊 ملخص عام",
@@ -303,7 +312,6 @@ fun AnalyticsScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            // المتوسطات لكل مادة
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
                     Text("📚 متوسط الدرجات لكل مادة",
@@ -317,10 +325,8 @@ fun AnalyticsScreen(
                         Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                             Row(Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(subj.name, fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp)
-                                Text(String.format("%.1f", avg),
-                                    fontSize = 13.sp,
+                                Text(subj.name, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(String.format("%.1f", avg), fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold)
                             }
@@ -328,11 +334,9 @@ fun AnalyticsScreen(
                             Row(Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("أعلى: ${high?.first ?: "-"} (${high?.second ?: 0})",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.secondary)
+                                    fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
                                 Text("أدنى: ${low?.first ?: "-"} (${low?.second ?: 0})",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.secondary)
+                                    fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
                             }
                         }
                         Divider()
@@ -342,7 +346,6 @@ fun AnalyticsScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            // الأوائل
             if (analytics.topStudents.isNotEmpty()) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
@@ -356,8 +359,7 @@ fun AnalyticsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("#$rank", Modifier.width(36.dp),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold, fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.primary)
                                 Text(name, Modifier.weight(1f), fontSize = 12.sp)
                                 Text("$total", fontSize = 13.sp,
@@ -372,7 +374,6 @@ fun AnalyticsScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            // توزيع التقديرات
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
                     Text("📈 توزيع التقديرات",
@@ -414,11 +415,6 @@ private fun StatBox(label: String, value: String) {
     }
 }
 
-private fun packageName(ctx: android.content.Context): String = ctx.packageName
-
-/**
- * حساب الإحصائيات الكاملة للصف.
- */
 private fun computeAnalytics(
     students: List<com.example.schoolmanager.data.Student>,
     subjects: List<com.example.schoolmanager.data.Subject>,
@@ -428,14 +424,12 @@ private fun computeAnalytics(
     val studentCount = students.size
     val subjectCount = subjects.size
 
-    // النتيجة النهائية لكل طالب في كل مادة
     val studentScores: Map<String, Map<String, Int>> = students.associate { student ->
         student.id to subjects.associate { subj ->
             subj.id to computeFinalSubjectScore(student.id, subj.id, allGrades)
         }
     }
 
-    // المتوسط والأعلى والأدنى لكل مادة
     val avgPerSubject = mutableMapOf<String, Double>()
     val highestPerSubject = mutableMapOf<String, Pair<String, Int>>()
     val lowestPerSubject = mutableMapOf<String, Pair<String, Int>>()
@@ -455,7 +449,6 @@ private fun computeAnalytics(
         }
     }
 
-    // الناجحون والراسبون
     var passCount = 0
     var failCount = 0
     val gradeDistribution = mutableMapOf<String, Int>()
@@ -466,7 +459,6 @@ private fun computeAnalytics(
         val passedAll = subjectScores.values.all { it >= 50 }
         if (passedAll) passCount++ else failCount++
 
-        // التقدير العام لكل طالب
         val avg = if (subjectScores.isNotEmpty())
             subjectScores.values.average() else 0.0
         val rating = when {
@@ -482,12 +474,10 @@ private fun computeAnalytics(
         Triple(student.name, student.id, total)
     }.sortedByDescending { it.third }
 
-    // أفضل 10
     val topStudents = studentTotals.take(10).mapIndexed { idx, t ->
         Triple(idx + 1, t.first, t.third)
     }
 
-    // ترتيب التقديرات بالترتيب المنطقي
     val orderedDistribution = linkedMapOf<String, Int>()
     listOf("ممتاز", "جيد جداً", "جيد", "مقبول", "ضعيف", "راسب").forEach { r ->
         if (gradeDistribution.containsKey(r)) {
@@ -508,9 +498,6 @@ private fun computeAnalytics(
     )
 }
 
-/**
- * حساب النتيجة النهائية للطالب في مادة (0-100).
- */
 private fun computeFinalSubjectScore(
     studentId: String,
     subjectId: String,
