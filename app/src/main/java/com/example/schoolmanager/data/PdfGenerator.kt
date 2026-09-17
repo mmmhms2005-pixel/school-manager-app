@@ -119,7 +119,7 @@ object PdfGenerator {
         var y = MARGIN + 5f
         val centerX = pageWidth / 2f
 
-        // الشعار
+        // ★ الشعار
         if (school.logoBase64.isNotBlank()) {
             try {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
@@ -141,16 +141,22 @@ object PdfGenerator {
             } catch (e: Exception) { }
         }
 
-        // اسم المدرسة
+        // ★ اسم المدرسة — عريض
         val schoolPaint = TextPaint().apply {
-            color = Color.BLACK; textSize = FONT_SCHOOL; isFakeBoldText = true
+            color = Color.BLACK
+            textSize = FONT_SCHOOL
+            isFakeBoldText = true
         }
         drawCenteredText(canvas, school.schoolName.ifBlank { "اسم المدرسة" }, centerX, y + FONT_SCHOOL, schoolPaint)
         y += FONT_SCHOOL + 5f
 
-        // العام الدراسي
+        // ★ العام الدراسي — عريض
         if (school.academicYear.isNotBlank()) {
-            val yearPaint = TextPaint().apply { color = Color.DKGRAY; textSize = FONT_YEAR }
+            val yearPaint = TextPaint().apply {
+                color = Color.DKGRAY
+                textSize = FONT_YEAR
+                isFakeBoldText = true
+            }
             drawCenteredText(canvas, school.academicYear, centerX, y + FONT_YEAR, yearPaint)
             y += FONT_YEAR + 6f
         }
@@ -161,20 +167,27 @@ object PdfGenerator {
         })
         y += 12
 
-        // العنوان + المعلومات
+        // ★ عنوان التقرير (يمين) — عريض
         val titlePaint = TextPaint().apply {
-            color = Color.BLACK; textSize = FONT_TITLE; textAlign = Paint.Align.RIGHT; isFakeBoldText = true
+            color = Color.BLACK
+            textSize = FONT_TITLE
+            textAlign = Paint.Align.RIGHT
+            isFakeBoldText = true
         }
         canvas.drawText(report.title, pageWidth - MARGIN, y + FONT_TITLE, titlePaint)
 
+        // ★ المعلومات (يسار) — عريض
         val metaPaint = TextPaint().apply {
-            color = Color.rgb(50, 50, 50); textSize = FONT_META; textAlign = Paint.Align.LEFT; isFakeBoldText = true
+            color = Color.rgb(30, 30, 30)
+            textSize = FONT_META
+            textAlign = Paint.Align.LEFT
+            isFakeBoldText = true
         }
         canvas.drawText(report.meta, MARGIN, y + FONT_META, metaPaint)
 
         y += FONT_TITLE + 14
 
-        // الجدول
+        // ═══ الجدول ═══
         val tableWidth = pageWidth - 2 * MARGIN
         val colWidths = report.columns.map { it.width * tableWidth }
         val headerHeight = 25f
@@ -184,12 +197,18 @@ object PdfGenerator {
         val rowsCount = rowsChunk.size.coerceAtLeast(1)
         val rowHeight = (availableForRows / rowsCount).coerceIn(9f, 20f)
 
+        // ★ رؤوس الأعمدة — عريضة
         val headerPaint = TextPaint().apply {
-            color = Color.BLACK; textSize = FONT_TABLE_HEADER; textAlign = Paint.Align.CENTER; isFakeBoldText = true
+            color = Color.BLACK
+            textSize = FONT_TABLE_HEADER
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
         }
         val cellBgPaint = Paint().apply { color = Color.rgb(241, 245, 249) }
         val borderPaint = Paint().apply {
-            color = Color.rgb(200, 200, 200); style = Paint.Style.STROKE; strokeWidth = 0.5f
+            color = Color.rgb(180, 180, 180)
+            style = Paint.Style.STROKE
+            strokeWidth = 0.5f
         }
 
         canvas.drawRect(MARGIN, y, pageWidth - MARGIN, y + headerHeight, cellBgPaint)
@@ -203,12 +222,19 @@ object PdfGenerator {
         }
         y += headerHeight
 
+        // ★ خلايا البيانات — عريضة
         val bodyFontSize = if (report.isLandscape) FONT_TABLE_BODY_L else FONT_TABLE_BODY_V
         val bodyPaint = TextPaint().apply {
-            color = Color.BLACK; textSize = bodyFontSize; textAlign = Paint.Align.CENTER
+            color = Color.BLACK
+            textSize = bodyFontSize
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true  // ← عريض
         }
         val redBodyPaint = TextPaint().apply {
-            color = Color.rgb(180, 30, 30); textSize = bodyFontSize; textAlign = Paint.Align.CENTER; isFakeBoldText = true
+            color = Color.rgb(180, 30, 30)
+            textSize = bodyFontSize
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
         }
 
         rowsChunk.forEach { row ->
@@ -230,7 +256,10 @@ object PdfGenerator {
 
         if (totalPages > 1) {
             val pageNumPaint = TextPaint().apply {
-                color = Color.DKGRAY; textSize = FONT_PAGE_NUM; textAlign = Paint.Align.CENTER; isFakeBoldText = true
+                color = Color.DKGRAY
+                textSize = FONT_PAGE_NUM
+                textAlign = Paint.Align.CENTER
+                isFakeBoldText = true
             }
             canvas.drawText("صفحة $pageNumber من $totalPages", centerX, pageHeight - 18f, pageNumPaint)
         }
@@ -250,6 +279,7 @@ object PdfGenerator {
         val lineHeight = linePaint.textSize + 2f
         val startY = boxTop + (boxHeight - lineHeight) / 2f + linePaint.textSize
         linePaint.textAlign = Paint.Align.CENTER
+        linePaint.isFakeBoldText = true
         canvas.drawText(text, boxLeft + boxWidth / 2f, startY, linePaint)
     }
 
@@ -262,17 +292,30 @@ object PdfGenerator {
     ) {
         val signLineY = pageHeight - 75f
 
+        // ★ جميع نصوص التوقيعات عريضة
         val labelPaint = TextPaint().apply {
-            color = Color.BLACK; textSize = FONT_SIGNATURE; textAlign = Paint.Align.CENTER; isFakeBoldText = true
+            color = Color.BLACK
+            textSize = FONT_SIGNATURE
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
         }
         val signHintPaint = TextPaint().apply {
-            color = Color.DKGRAY; textSize = 9f; textAlign = Paint.Align.RIGHT; isFakeBoldText = true
+            color = Color.DKGRAY
+            textSize = 9f
+            textAlign = Paint.Align.RIGHT
+            isFakeBoldText = true
         }
         val namePaint = TextPaint().apply {
-            color = Color.rgb(40, 40, 40); textSize = FONT_SIGNATURE; textAlign = Paint.Align.CENTER
+            color = Color.rgb(30, 30, 30)
+            textSize = FONT_SIGNATURE
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
         }
         val emptyLinePaint = TextPaint().apply {
-            color = Color.rgb(150, 150, 150); textSize = 10f; textAlign = Paint.Align.CENTER
+            color = Color.rgb(130, 130, 130)
+            textSize = 10f
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
         }
         val linePaint = Paint().apply { color = Color.DKGRAY; strokeWidth = 0.7f }
 
