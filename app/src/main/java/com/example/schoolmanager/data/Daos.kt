@@ -19,6 +19,9 @@ interface SchoolDao {
     @Delete
     suspend fun deleteStudent(s: Student)
 
+    @Query("DELETE FROM students")
+    suspend fun clearAllStudents()
+
     // Classes
     @Query("SELECT * FROM school_classes ORDER BY `order`")
     fun classes(): Flow<List<SchoolClass>>
@@ -31,6 +34,9 @@ interface SchoolDao {
 
     @Delete
     suspend fun deleteClass(c: SchoolClass)
+
+    @Query("DELETE FROM school_classes")
+    suspend fun clearAllClasses()
 
     // Sections
     @Query("SELECT * FROM sections")
@@ -45,6 +51,9 @@ interface SchoolDao {
     @Delete
     suspend fun deleteSection(s: Section)
 
+    @Query("DELETE FROM sections")
+    suspend fun clearAllSections()
+
     // Subjects
     @Query("SELECT * FROM subjects ORDER BY name")
     fun subjects(): Flow<List<Subject>>
@@ -58,6 +67,9 @@ interface SchoolDao {
     @Delete
     suspend fun deleteSubject(s: Subject)
 
+    @Query("DELETE FROM subjects")
+    suspend fun clearAllSubjects()
+
     // Teachers
     @Query("SELECT * FROM teachers ORDER BY name")
     fun teachers(): Flow<List<Teacher>>
@@ -70,6 +82,9 @@ interface SchoolDao {
 
     @Delete
     suspend fun deleteTeacher(t: Teacher)
+
+    @Query("DELETE FROM teachers")
+    suspend fun clearAllTeachers()
 
     // Grades
     @Query("SELECT * FROM grades")
@@ -87,10 +102,16 @@ interface SchoolDao {
     @Delete
     suspend fun deleteGrade(g: Grade)
 
+    @Query("DELETE FROM grades")
+    suspend fun clearAllGrades()
+
     // Settings
     @Query("SELECT * FROM school_settings WHERE id = 1")
     fun settings(): Flow<SchoolSettings?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveSettings(s: SchoolSettings)
+
+    @Query("DELETE FROM school_settings")
+    suspend fun clearSettings()
 }
