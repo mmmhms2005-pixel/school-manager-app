@@ -43,7 +43,7 @@ fun DashboardScreen(nav: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("إدارة المدرسة", fontWeight = FontWeight.Bold) },
+                title = { Text("نظام المدرسة الذكي", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -65,7 +65,7 @@ fun DashboardScreen(nav: NavController) {
             ) {
                 Column(Modifier.padding(20.dp)) {
                     Text(
-                        "أهلاً بك في نظام إدارة المدرسة 👋",
+                        "أهلاً بك في نظام المدرسة الذكي 👋",
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
