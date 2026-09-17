@@ -74,7 +74,6 @@ fun StudentPeriodsScreen(
 
     val canGenerate = classId.isNotBlank() && studentId.isNotBlank() && subjectId.isNotBlank()
 
-    // ★ حساب النتائج مع الدرجات التفصيلية
     val results = remember(studentId, subjectId, allGrades) {
         if (studentId.isBlank() || subjectId.isBlank()) emptyList()
         else buildPeriodResults(studentId, subjectId, allGrades)
@@ -83,7 +82,6 @@ fun StudentPeriodsScreen(
     Column(
         Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState())
     ) {
-        // الصف + الشعبة
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.weight(1f)) {
                 ExposedDropdownMenuBox(classExpanded, { classExpanded = !classExpanded }) {
@@ -133,7 +131,6 @@ fun StudentPeriodsScreen(
 
         Spacer(Modifier.height(6.dp))
 
-        // الطالب + المادة
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.weight(1f)) {
                 ExposedDropdownMenuBox(studentExpanded, { studentExpanded = !studentExpanded }) {
@@ -191,16 +188,17 @@ fun StudentPeriodsScreen(
                 scope.launch {
                     try {
                         val rows = buildPeriodRows(results)
+                        // ★ المجموع = 1.0 لملء عرض الصفحة كاملاً
                         val cols = listOf(
-                            PdfGenerator.Column("#", 0.04f),
-                            PdfGenerator.Column("الفترة", 0.16f),
-                            PdfGenerator.Column("واجب", 0.08f),
-                            PdfGenerator.Column("شفهي", 0.08f),
-                            PdfGenerator.Column("غياب", 0.07f),
-                            PdfGenerator.Column("مواظبة", 0.09f),
-                            PdfGenerator.Column("تحريري", 0.09f),
-                            PdfGenerator.Column("المجموع", 0.10f),
-                            PdfGenerator.Column("التقدير", 0.14f)
+                            PdfGenerator.Column("#", 0.05f),
+                            PdfGenerator.Column("الفترة", 0.18f),
+                            PdfGenerator.Column("واجب", 0.09f),
+                            PdfGenerator.Column("شفهي", 0.09f),
+                            PdfGenerator.Column("غياب", 0.09f),
+                            PdfGenerator.Column("مواظبة", 0.10f),
+                            PdfGenerator.Column("تحريري", 0.10f),
+                            PdfGenerator.Column("المجموع", 0.11f),
+                            PdfGenerator.Column("التقدير", 0.19f)
                         )
 
                         val selectedTeacher = allTeachers.firstOrNull { t ->
@@ -356,9 +354,7 @@ private fun buildPeriodResults(
         )
         totals[p] = computed.total
 
-        // ★ عرض الدرجات الفعلية لكل فترة
         if (isExam) {
-            // فترة امتحان: التحريري فقط
             out.add(PeriodResult(
                 periodName = name,
                 homework = "-",
@@ -370,7 +366,6 @@ private fun buildPeriodResults(
                 rating = ratingFor(computed.total, true)
             ))
         } else {
-            // فترة شهرية: كل الحقول
             out.add(PeriodResult(
                 periodName = name,
                 homework = "${computed.homework}",
@@ -384,12 +379,10 @@ private fun buildPeriodResults(
         }
     }
 
-    // حساب النصف الأول = متوسط (1,2,3) + امتحان 4
     val avg1 = ((totals[1] ?: 0) + (totals[2] ?: 0) + (totals[3] ?: 0)) / 3.0
     val exam1 = totals[4] ?: 0
     val sem1 = (avg1 + exam1).toInt()
 
-    // حساب نهاية العام = النصف الأول + متوسط (5,6,7) + امتحان 8
     val avg2 = ((totals[5] ?: 0) + (totals[6] ?: 0) + (totals[7] ?: 0)) / 3.0
     val exam2 = totals[8] ?: 0
     val final = (sem1 + avg2 + exam2).toInt()
