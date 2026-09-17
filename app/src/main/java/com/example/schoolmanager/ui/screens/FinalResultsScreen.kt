@@ -28,7 +28,7 @@ data class FinalResult(
     val rank: Int,
     val number: String,
     val name: String,
-    val subjectScores: List<Int>,  // /100 لكل مادة
+    val subjectScores: List<Int>,
     val total: Int,
     val average: Double,
     val status: String
@@ -77,7 +77,6 @@ fun FinalResultsScreen(
 
     val canGenerate = classId.isNotBlank() && filteredStudents.isNotEmpty() && availableSubjects.isNotEmpty()
 
-    // حساب النتائج
     val results = remember(classId, sectionId, allGrades, availableSubjects) {
         if (!canGenerate) emptyList()
         else computeFinalResults(filteredStudents, availableSubjects, allGrades)
@@ -86,7 +85,6 @@ fun FinalResultsScreen(
     Column(
         Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState())
     ) {
-        // الصف + الشعبة
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.weight(1f)) {
                 ExposedDropdownMenuBox(classExpanded, { classExpanded = !classExpanded }) {
@@ -156,26 +154,34 @@ fun FinalResultsScreen(
             onClick = {
                 scope.launch {
                     try {
-                        // أعمدة: # | رقم | اسم | [المواد] | المجموع | المعدل | الترتيب | الحالة
+                        // ★ حساب عروض الأعمدة بدقة (المجموع = 1.0 بالضبط)
                         val cols = mutableListOf<PdfGenerator.Column>()
-                        cols.add(PdfGenerator.Column("#", 0.04f))
-                        cols.add(PdfGenerator.Column("رقم", 0.07f))
-                        cols.add(PdfGenerator.Column("اسم الطالب", 0.20f))
 
-                        val subjectColWidth = if (availableSubjects.size <= 6) {
-                            (0.50f / availableSubjects.size)
-                        } else {
-                            (0.45f / availableSubjects.size)
-                        }
+                        // عروض ثابتة
+                        val rankNoW = 0.030f       // #
+                        val numberW = 0.055f       // رقم
+                        val nameW = 0.160f         // الاسم
+                        val totalW = 0.080f        // المجموع
+                        val avgW = 0.070f          // المعدل
+                        val rankW = 0.070f         // الترتيب
+                        val statusW = 0.070f       // الحالة
+
+                        val fixedSum = rankNoW + numberW + nameW + totalW + avgW + rankW + statusW
+                        val remainingForSubjects = 1.0f - fixedSum
+                        val subjectW = remainingForSubjects / availableSubjects.size
+
+                        cols.add(PdfGenerator.Column("#", rankNoW))
+                        cols.add(PdfGenerator.Column("رقم", numberW))
+                        cols.add(PdfGenerator.Column("اسم الطالب", nameW))
 
                         availableSubjects.forEach { subj ->
-                            cols.add(PdfGenerator.Column(subj.name, subjectColWidth))
+                            cols.add(PdfGenerator.Column(subj.name, subjectW))
                         }
 
-                        cols.add(PdfGenerator.Column("المجموع", 0.09f))
-                        cols.add(PdfGenerator.Column("المعدل", 0.08f))
-                        cols.add(PdfGenerator.Column("الترتيب", 0.07f))
-                        cols.add(PdfGenerator.Column("الحالة", 0.08f))
+                        cols.add(PdfGenerator.Column("المجموع", totalW))
+                        cols.add(PdfGenerator.Column("المعدل", avgW))
+                        cols.add(PdfGenerator.Column("الترتيب", rankW))
+                        cols.add(PdfGenerator.Column("الحالة", statusW))
 
                         val rows = results.mapIndexed { idx, r ->
                             val row = mutableListOf<String>()
@@ -197,7 +203,8 @@ fun FinalResultsScreen(
                             logoBase64 = settings?.logoBase64 ?: ""
                         )
 
-                        val isLandscape = availableSubjects.size > 5
+                        // ★ أفقي دائماً إذا كان عدد المواد 5 أو أكثر
+                        val isLandscape = availableSubjects.size >= 5
 
                         val reportData = PdfGenerator.ReportData(
                             title = "النتيجة النهائية والترتيب",
@@ -211,8 +218,8 @@ fun FinalResultsScreen(
                             rows = rows,
                             isLandscape = isLandscape,
                             redColumnIndices = setOf(
-                                cols.size - 4, // المجموع
-                                cols.size - 1  // الحالة
+                                cols.size - 4,  // المجموع
+                                cols.size - 1   // الحالة
                             )
                         )
 
@@ -271,7 +278,6 @@ fun FinalResultsScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // معاينة
         if (canGenerate && results.isNotEmpty()) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(10.dp)) {
@@ -283,7 +289,6 @@ fun FinalResultsScreen(
                     Divider()
                     Spacer(Modifier.height(6.dp))
 
-                    // أفضل 5 طلاب
                     Text("🏆 الأوائل:",
                         fontWeight = FontWeight.Bold, fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.primary)
@@ -332,16 +337,12 @@ fun FinalResultsScreen(
     }
 }
 
-/**
- * حساب النتائج النهائية لكل طالب، وترتيبهم تنازلياً حسب المجموع.
- */
 private fun computeFinalResults(
     students: List<com.example.schoolmanager.data.Student>,
     subjects: List<com.example.schoolmanager.data.Subject>,
     allGrades: List<com.example.schoolmanager.data.Grade>
 ): List<FinalResult> {
 
-    // 1. حساب النتيجة النهائية لكل طالب في كل مادة
     data class Intermediate(
         val student: com.example.schoolmanager.data.Student,
         val scores: List<Int>,
@@ -350,7 +351,6 @@ private fun computeFinalResults(
 
     val intermediate = students.map { student ->
         val subjectScores = subjects.map { subj ->
-            // النصف الأول: متوسط (1، 2، 3) + امتحان (4)
             val month1 = getPeriodTotal(student.id, subj.id, 1, allGrades)
             val month2 = getPeriodTotal(student.id, subj.id, 2, allGrades)
             val month3 = getPeriodTotal(student.id, subj.id, 3, allGrades)
@@ -358,7 +358,6 @@ private fun computeFinalResults(
             val avg1 = (month1 + month2 + month3) / 3.0
             val sem1 = (avg1 + exam1).toInt()
 
-            // النصف الثاني: متوسط (5، 6، 7) + امتحان (8)
             val month5 = getPeriodTotal(student.id, subj.id, 5, allGrades)
             val month6 = getPeriodTotal(student.id, subj.id, 6, allGrades)
             val month7 = getPeriodTotal(student.id, subj.id, 7, allGrades)
@@ -375,10 +374,8 @@ private fun computeFinalResults(
         )
     }
 
-    // 2. ترتيب تنازلياً حسب المجموع
     val sorted = intermediate.sortedByDescending { it.total }
 
-    // 3. بناء النتائج مع الترتيب
     return sorted.mapIndexed { index, item ->
         val passedSubjects = item.scores.count { it >= 50 }
         val status = if (passedSubjects == item.scores.size) "ناجح" else "راسب"
@@ -394,9 +391,6 @@ private fun computeFinalResults(
     }
 }
 
-/**
- * مجموع الطالب في فترة معينة لمادة معينة (0 إلى 20 أو 0 إلى 30).
- */
 private fun getPeriodTotal(
     studentId: String,
     subjectId: String,
