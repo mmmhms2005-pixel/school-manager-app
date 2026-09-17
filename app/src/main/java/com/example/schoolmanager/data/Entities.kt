@@ -8,7 +8,8 @@ data class SchoolClass(
     @PrimaryKey val id: String,
     val name: String,
     val order: Int,
-    val sectionIds: String
+    val sectionIds: String,
+    val homeroomTeachers: String = ""
 )
 
 @Entity(tableName = "sections")
@@ -44,7 +45,7 @@ data class Teacher(
     val specialization: String,
     val notes: String,
     val sectionIds: String,
-    val assignments: String  // "subId:classId,subId:classId"
+    val assignments: String
 )
 
 @Entity(tableName = "grades")
