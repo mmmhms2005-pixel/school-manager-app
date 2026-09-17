@@ -150,7 +150,7 @@ object PdfGenerator {
         canvas.drawLine(MARGIN, y, pageWidth - MARGIN, y, linePaint)
         y += 12
 
-        // ===== عنوان التقرير (يمين) + المعلومات (يسار) =====
+        // ===== عنوان التقرير + المعلومات =====
         val titlePaint = TextPaint().apply {
             color = Color.BLACK
             textSize = FONT_TITLE
@@ -159,7 +159,6 @@ object PdfGenerator {
         }
         canvas.drawText(report.title, pageWidth - MARGIN, y + FONT_TITLE, titlePaint)
 
-        // ★ الخط الأوضح للمعلومات
         val metaPaint = TextPaint().apply {
             color = Color.rgb(50, 50, 50)
             textSize = FONT_META
@@ -248,11 +247,7 @@ object PdfGenerator {
         canvas.drawText(text, boxLeft + boxWidth / 2f, startY, linePaint)
     }
 
-    /**
-     * التوقيعات مع فراغ مخصص للتوقيع الفعلي وكلمة "التوقيع/"
-     */
     private fun drawSignatures(canvas: Canvas, pageWidth: Int, pageHeight: Int, school: SchoolInfo) {
-        // خط التوقيع على مسافة كافية من أسفل الصفحة
         val signLineY = pageHeight - 75f
 
         val labelPaint = TextPaint().apply {
@@ -288,20 +283,12 @@ object PdfGenerator {
         val values = listOf(school.teacherName, school.principalName, "")
 
         positions.forEachIndexed { i, x ->
-            // خط التوقيع
             canvas.drawLine(x - third * 0.32f, signLineY, x + third * 0.32f, signLineY, linePaint)
-
-            // الفراغ المخصص للتوقيع (فوق الخط) — يُملأ يدوياً
-            // لا نرسم شيئاً هنا
-
-            // كلمة "معلم المادة" / "مدير المدرسة" / "الختم الرسمي"
             canvas.drawText(labels[i], x, signLineY - 8, labelPaint)
 
-            // كلمة "التوقيع/" — تحت الكلمة الأساسية، منحازة لليمين قليلاً
             val signHintX = x + third * 0.18f
             canvas.drawText("التوقيع/", signHintX, signLineY + 16, signHintPaint)
 
-            // اسم المعلم/المدير
             if (values[i].isNotBlank()) {
                 canvas.drawText(values[i], x, signLineY + 32, namePaint)
             }
