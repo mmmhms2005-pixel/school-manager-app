@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.GradeCalculator
+import com.example.schoolmanager.data.HomeroomTeacherHelper
 import com.example.schoolmanager.data.PdfGenerator
 import com.example.schoolmanager.data.SchoolDao
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +41,7 @@ fun StudentFullReportScreen(
     val students by dao.students().collectAsState(initial = emptyList())
     val allGrades by dao.grades().collectAsState(initial = emptyList())
     val settings by dao.settings().collectAsState(initial = null)
+    val allTeachers by dao.teachers().collectAsState(initial = emptyList())
 
     var classId by remember { mutableStateOf("") }
     var sectionId by remember { mutableStateOf("") }
@@ -65,7 +67,6 @@ fun StudentFullReportScreen(
     val selectedStudent = students.find { it.id == studentId }
     val isExam = GradeCalculator.isExam(period)
 
-    // المواد المتاحة للصف المختار
     val availableSubjects = subjects.filter { subj ->
         classId.isBlank() ||
         subj.classIds.isBlank() ||
@@ -76,7 +77,6 @@ fun StudentFullReportScreen(
 
     Column(Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState())) {
 
-        // الصف
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.weight(1f)) {
                 ExposedDropdownMenuBox(classExpanded, { classExpanded = !classExpanded }) {
@@ -126,7 +126,6 @@ fun StudentFullReportScreen(
 
         Spacer(Modifier.height(6.dp))
 
-        // الطالب + الفترة
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.weight(1f)) {
                 ExposedDropdownMenuBox(studentExpanded, { studentExpanded = !studentExpanded }) {
@@ -212,10 +211,18 @@ fun StudentFullReportScreen(
                             redCols = setOf(7)
                         }
 
+                        val homeroomName = HomeroomTeacherHelper.getName(
+                            classId = classId,
+                            sectionId = sectionId,
+                            classes = classes,
+                            teachers = allTeachers
+                        )
+
                         val schoolInfo = PdfGenerator.SchoolInfo(
                             schoolName = settings?.schoolName ?: "",
                             academicYear = settings?.academicYear ?: "",
                             principalName = settings?.principalName ?: "",
+                            homeroomTeacherName = homeroomName,
                             logoBase64 = settings?.logoBase64 ?: ""
                         )
 
@@ -230,7 +237,8 @@ fun StudentFullReportScreen(
                             columns = cols,
                             rows = rows,
                             isLandscape = false,
-                            redColumnIndices = redCols
+                            redColumnIndices = redCols,
+                            isMultiSubject = true
                         )
 
                         val file = withContext(Dispatchers.IO) {
@@ -288,7 +296,6 @@ fun StudentFullReportScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // معاينة
         if (canGenerate && selectedStudent != null) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
@@ -336,7 +343,6 @@ fun StudentFullReportScreen(
     }
 }
 
-// بناء صفوف الجدول
 private fun buildStudentFullRows(
     student: com.example.schoolmanager.data.Student,
     subjects: List<com.example.schoolmanager.data.Subject>,
@@ -382,7 +388,6 @@ private fun buildStudentFullRows(
     }
 }
 
-// التقدير حسب الدرجة
 private fun ratingFor(score: Int, isExam: Boolean): String {
     val max = if (isExam) 30 else 20
     val percent = (score * 100) / max
