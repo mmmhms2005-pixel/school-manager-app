@@ -71,7 +71,6 @@ fun ClassReportScreen(
     Column(
         Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState())
     ) {
-        // الصف + الشعبة
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.weight(1f)) {
                 ExposedDropdownMenuBox(classExpanded, { classExpanded = !classExpanded }) {
@@ -121,7 +120,6 @@ fun ClassReportScreen(
 
         Spacer(Modifier.height(6.dp))
 
-        // المادة
         ExposedDropdownMenuBox(subjectExpanded, { subjectExpanded = !subjectExpanded }) {
             OutlinedTextField(
                 value = subjects.find { it.id == subjectId }?.name ?: "المادة",
@@ -212,30 +210,8 @@ fun ClassReportScreen(
                             )
                         }
 
-                        val uri = FileProvider.getUriForFile(
-                            ctx,
-                            "${ctx.packageName}.fileprovider",
-                            file
-                        )
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/pdf")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            ctx.startActivity(intent)
-                        } catch (e: Exception) {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            ctx.startActivity(
-                                Intent.createChooser(shareIntent, "افتح PDF").apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                            )
-                        }
+                        // ★ فتح PDF مباشرة
+                        openPdfDirectly(ctx, file)
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد الكشف الشامل",
@@ -336,11 +312,9 @@ private fun buildClassReportData(
             row.add("$total")
         }
 
-        // النصف الأول
         val avg1 = ((totals[1] ?: 0) + (totals[2] ?: 0) + (totals[3] ?: 0)) / 3.0
         val sem1 = (avg1 + (totals[4] ?: 0)).toInt()
 
-        // نهاية العام
         val avg2 = ((totals[5] ?: 0) + (totals[6] ?: 0) + (totals[7] ?: 0)) / 3.0
         val final = (sem1 + avg2 + (totals[8] ?: 0)).toInt()
 
