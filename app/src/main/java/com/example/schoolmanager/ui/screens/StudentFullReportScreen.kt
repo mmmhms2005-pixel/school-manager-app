@@ -250,30 +250,8 @@ fun StudentFullReportScreen(
                             )
                         }
 
-                        val uri = FileProvider.getUriForFile(
-                            ctx,
-                            "${ctx.packageName}.fileprovider",
-                            file
-                        )
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/pdf")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            ctx.startActivity(intent)
-                        } catch (e: Exception) {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            ctx.startActivity(
-                                Intent.createChooser(shareIntent, "افتح PDF").apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                            )
-                        }
+                        // ★ فتح PDF مباشرة
+                        openPdfDirectly(ctx, file)
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد كشف الطالب",
