@@ -1,6 +1,7 @@
 package com.example.schoolmanager.ui.screens
 
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -29,6 +30,66 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+
+/**
+ * ★ دالة موحّدة لعرض PDF مباشرة في العارض.
+ * تتجنب Chooser إن أمكن، وتفتح مباشرة.
+ */
+fun openPdfDirectly(context: android.content.Context, file: File) {
+    val uri: Uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+
+    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, "application/pdf")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    // محاولة فتح عارض PDF مباشرة (تجنب Chooser)
+    val pdfViewers = listOf(
+        "com.google.android.apps.docs",           // Google Drive PDF Viewer
+        "com.android.chrome",                     // Chrome
+        "com.google.android.apps.pdfviewer",      // Google PDF Viewer
+        "com.adobe.reader",                       // Adobe Reader
+        "com.microsoft.office.officehubrow"       // Microsoft Office
+    )
+
+    var opened = false
+    for (pkg in pdfViewers) {
+        try {
+            viewIntent.setPackage(pkg)
+            context.startActivity(viewIntent)
+            opened = true
+            break
+        } catch (e: Exception) {
+            // لم يُفتح، جرّب التالي
+        }
+    }
+
+    // إذا لم يفتح أي عارض مباشرة، افتح Chooser
+    if (!opened) {
+        try {
+            viewIntent.setPackage(null)
+            context.startActivity(viewIntent)
+        } catch (e: Exception) {
+            // Fallback: مشاركة
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(
+                Intent.createChooser(shareIntent, "افتح PDF").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+        }
+    }
+}
 
 data class ReportTile(
     val id: String,
@@ -354,30 +415,8 @@ fun AnnualGradesReportScreen(
                             )
                         }
 
-                        val uri = FileProvider.getUriForFile(
-                            ctx,
-                            "${ctx.packageName}.fileprovider",
-                            file
-                        )
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/pdf")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            ctx.startActivity(intent)
-                        } catch (e: Exception) {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            ctx.startActivity(
-                                Intent.createChooser(shareIntent, "افتح PDF باستخدام").apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                            )
-                        }
+                        // ★ فتح PDF مباشرة
+                        openPdfDirectly(ctx, file)
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد PDF بنجاح",
