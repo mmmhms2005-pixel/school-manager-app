@@ -72,19 +72,14 @@ fun ClassesScreen(nav: NavController) {
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = {
-                    if (teachers.isEmpty()) {
-                        scope.launch {
-                            // سيُنبَّه المستخدم داخل النافذة
-                        }
-                    }
                     editing = null
                     showClassDialog = true
-                },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("إضافة صف") }
-            )
+                }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "إضافة صف")
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -318,13 +313,10 @@ fun ClassDialog(
         )
     }
 
-    // ★ التحقق من الإجبارية
     val hasTeachers = teachers.isNotEmpty()
     val allSectionsHaveTeacher = if (selectedSections.isEmpty()) {
-        // بلا شعب: يجب تحديد مربي الصف كاملاً
         !homeroomMap[HomeroomTeacherHelper.classWideKey()].isNullOrBlank()
     } else {
-        // مع شعب: كل شعبة يجب أن يكون لها مربي
         selectedSections.all { sid ->
             !homeroomMap[sid].isNullOrBlank()
         }
@@ -443,7 +435,6 @@ fun ClassDialog(
             TextButton(
                 enabled = canSave,
                 onClick = {
-                    // تنظيف: حذف المربين للشعب غير المحددة
                     val cleanedMap = homeroomMap.filterKeys { key ->
                         key == HomeroomTeacherHelper.classWideKey() || key in selectedSections
                     }
