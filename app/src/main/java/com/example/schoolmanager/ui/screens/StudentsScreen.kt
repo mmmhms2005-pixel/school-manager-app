@@ -75,11 +75,11 @@ fun StudentsScreen(nav: NavController) {
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { editing = null; showDialog = true },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("إضافة طالب") }
-            )
+            FloatingActionButton(
+                onClick = { editing = null; showDialog = true }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "إضافة طالب")
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
@@ -348,7 +348,6 @@ fun StudentDialog(
             TextButton(
                 enabled = name.isNotBlank() && classId.isNotBlank(),
                 onClick = {
-                    // ★ الأرقام المستخدمة (مع استثناء الطالب الحالي عند التعديل)
                     val usedNumbers = existingStudents
                         .filter { it.id != student?.id }
                         .map { it.number }
@@ -509,7 +508,6 @@ fun BulkStudentsDialog(
             TextButton(
                 enabled = classId.isNotBlank() && nameLines.isNotEmpty(),
                 onClick = {
-                    // ★ الأرقام المستخدمة: الطلاب الموجودون + الطلاب الجدد
                     val usedNumbers = existingStudents.map { it.number }.toMutableSet()
                     val newStudents = nameLines.map { line ->
                         val num = generateUniqueNumber(usedNumbers)
@@ -534,10 +532,6 @@ fun BulkStudentsDialog(
     )
 }
 
-/**
- * يولّد رقماً تسلسلياً فريداً بدءاً من 1.
- * يتخطى الأرقام المستخدمة حتى يجد رقماً حراً.
- */
 private fun generateUniqueNumber(usedNumbers: Set<String>): String {
     var n = 1
     while (usedNumbers.contains(n.toString())) n++
