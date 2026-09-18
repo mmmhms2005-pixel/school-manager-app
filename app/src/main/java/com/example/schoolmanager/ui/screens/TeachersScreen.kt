@@ -71,11 +71,11 @@ fun TeachersScreen(nav: NavController) {
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { editing = null; showDialog = true },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("إضافة معلم") }
-            )
+            FloatingActionButton(
+                onClick = { editing = null; showDialog = true }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "إضافة معلم")
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
@@ -100,7 +100,10 @@ fun TeachersScreen(nav: NavController) {
                     }
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 90.dp)
+                ) {
                     items(filtered, key = { it.id }) { teacher ->
                         TeacherCard(
                             teacher = teacher,
@@ -304,7 +307,6 @@ fun TeacherDialog(
                         fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
 
                     subjects.forEach { subject ->
-                        // ★ الإصلاح: التحقق من وجود المادة كمفتاح، وليس من محتوى مجموعتها
                         val isSelected = assignments.containsKey(subject.id)
                         val selectedClasses = assignments[subject.id] ?: emptySet()
 
