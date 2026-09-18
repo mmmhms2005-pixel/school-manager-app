@@ -188,7 +188,6 @@ fun StudentPeriodsScreen(
                 scope.launch {
                     try {
                         val rows = buildPeriodRows(results)
-                        // ★ المجموع = 1.0 لملء عرض الصفحة كاملاً
                         val cols = listOf(
                             PdfGenerator.Column("#", 0.05f),
                             PdfGenerator.Column("الفترة", 0.18f),
@@ -238,30 +237,8 @@ fun StudentPeriodsScreen(
                             )
                         }
 
-                        val uri = FileProvider.getUriForFile(
-                            ctx,
-                            "${ctx.packageName}.fileprovider",
-                            file
-                        )
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/pdf")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            ctx.startActivity(intent)
-                        } catch (e: Exception) {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            ctx.startActivity(
-                                Intent.createChooser(shareIntent, "افتح PDF").apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                            )
-                        }
+                        // ★ فتح PDF مباشرة
+                        openPdfDirectly(ctx, file)
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد كشف الطالب عبر الفترات",
@@ -389,22 +366,14 @@ private fun buildPeriodResults(
 
     out.add(PeriodResult(
         periodName = "النصف الأول (من 50)",
-        homework = "-",
-        oral = "-",
-        absence = "-",
-        attendance = "-",
-        written = "-",
+        homework = "-", oral = "-", absence = "-", attendance = "-", written = "-",
         total = sem1,
         rating = ratingFor(sem1, false, 50),
         isSummary = true
     ))
     out.add(PeriodResult(
         periodName = "نهاية العام (من 100)",
-        homework = "-",
-        oral = "-",
-        absence = "-",
-        attendance = "-",
-        written = "-",
+        homework = "-", oral = "-", absence = "-", attendance = "-", written = "-",
         total = final,
         rating = ratingFor(final, false, 100),
         isSummary = true
