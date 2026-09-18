@@ -181,7 +181,6 @@ fun AnalyticsScreen(
                             logoBase64 = settings?.logoBase64 ?: ""
                         )
 
-                        // ── الصفحة 1: ملخص عام
                         val page1Rows = mutableListOf<List<String>>()
                         page1Rows.add(listOf("عدد الطلاب", "${a.studentCount}"))
                         page1Rows.add(listOf("عدد المواد", "${a.subjectCount}"))
@@ -194,7 +193,6 @@ fun AnalyticsScreen(
                             PdfGenerator.Column("القيمة", 0.50f)
                         )
 
-                        // ── الصفحة 2: الأوائل
                         val page2Rows = a.topStudents.map { (rank, name, total) ->
                             listOf("$rank", name, "$total")
                         }
@@ -248,30 +246,8 @@ fun AnalyticsScreen(
                             )
                         }
 
-                        val uri = FileProvider.getUriForFile(
-                            ctx,
-                            "${ctx.packageName}.fileprovider",
-                            file
-                        )
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/pdf")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            ctx.startActivity(intent)
-                        } catch (e: Exception) {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            ctx.startActivity(
-                                Intent.createChooser(shareIntent, "افتح PDF").apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                            )
-                        }
+                        // ★ فتح PDF مباشرة
+                        openPdfDirectly(ctx, file)
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد لوحة الإحصائيات",
