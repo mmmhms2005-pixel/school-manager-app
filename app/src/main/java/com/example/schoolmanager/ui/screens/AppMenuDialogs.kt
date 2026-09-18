@@ -772,10 +772,11 @@ fun DangerZoneDialog(onDismiss: () -> Unit) {
             text = { Text("هل تريد إنشاء نسخة احتياطية قبل الحذف؟") },
             confirmButton = {
                 TextButton(onClick = {
-                    showBackupOffer = false
-                    snackbar.showSnackbar("💾 استخدم زر النسخ الاحتياطي من القائمة")
-                }) { Text("موافق") }
-            },
+    showBackupOffer = false
+    scope.launch {
+        snackbar.showSnackbar("📋 قائمة")
+    }
+}) { Text("موافق") }
             dismissButton = {
                 TextButton(onClick = {
                     showBackupOffer = false
