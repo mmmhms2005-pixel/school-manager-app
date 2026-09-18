@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface SchoolDao {
 
-    // Students
+    // ═══ Students ═══
     @Query("SELECT * FROM students ORDER BY CAST(number AS INTEGER), name")
     fun students(): Flow<List<Student>>
 
@@ -22,7 +22,10 @@ interface SchoolDao {
     @Query("DELETE FROM students")
     suspend fun clearAllStudents()
 
-    // Classes
+    @Query("DELETE FROM grades WHERE studentId IN (SELECT id FROM students)")
+    suspend fun clearAllStudentGrades()
+
+    // ═══ Classes ═══
     @Query("SELECT * FROM school_classes ORDER BY `order`")
     fun classes(): Flow<List<SchoolClass>>
 
@@ -38,7 +41,7 @@ interface SchoolDao {
     @Query("DELETE FROM school_classes")
     suspend fun clearAllClasses()
 
-    // Sections
+    // ═══ Sections ═══
     @Query("SELECT * FROM sections")
     fun sections(): Flow<List<Section>>
 
@@ -54,7 +57,7 @@ interface SchoolDao {
     @Query("DELETE FROM sections")
     suspend fun clearAllSections()
 
-    // Subjects
+    // ═══ Subjects ═══
     @Query("SELECT * FROM subjects ORDER BY name")
     fun subjects(): Flow<List<Subject>>
 
@@ -70,7 +73,7 @@ interface SchoolDao {
     @Query("DELETE FROM subjects")
     suspend fun clearAllSubjects()
 
-    // Teachers
+    // ═══ Teachers ═══
     @Query("SELECT * FROM teachers ORDER BY name")
     fun teachers(): Flow<List<Teacher>>
 
@@ -86,7 +89,7 @@ interface SchoolDao {
     @Query("DELETE FROM teachers")
     suspend fun clearAllTeachers()
 
-    // Grades
+    // ═══ Grades ═══
     @Query("SELECT * FROM grades")
     fun grades(): Flow<List<Grade>>
 
@@ -105,7 +108,7 @@ interface SchoolDao {
     @Query("DELETE FROM grades")
     suspend fun clearAllGrades()
 
-    // Settings
+    // ═══ Settings ═══
     @Query("SELECT * FROM school_settings WHERE id = 1")
     fun settings(): Flow<SchoolSettings?>
 
