@@ -5,7 +5,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +32,10 @@ fun DashboardScreen(nav: NavController) {
     val subjects by dao.subjects().collectAsState(initial = emptyList())
     val teachers by dao.teachers().collectAsState(initial = emptyList())
 
+    // ★ حالة القائمة المنبثقة
+    var showMenu by remember { mutableStateOf(false) }
+    var selectedOption by remember { mutableStateOf<MenuOption?>(null) }
+
     val items = listOf(
         NavItem("students", "الطلاب", "👨‍🎓", "إدارة بيانات الطلاب"),
         NavItem("classes", "الصفوف والشعب", "🏫", "إدارة الصفوف"),
@@ -46,19 +50,16 @@ fun DashboardScreen(nav: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("نظام المدرسة الذكي", fontWeight = FontWeight.Bold) },
-                actions = {
-                    // ★ زر "حول التطبيق"
-                    IconButton(onClick = { nav.navigate("about") }) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = "حول التطبيق"
-                        )
+                navigationIcon = {
+                    // ★ زر ☰ في أعلى اليسار
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.Menu, contentDescription = "القائمة")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
@@ -143,6 +144,24 @@ fun DashboardScreen(nav: NavController) {
                 }
             }
         }
+    }
+
+    // ★ قائمة ☰ المنبثقة
+    if (showMenu) {
+        AppMenuPopup(
+            onDismiss = { showMenu = false },
+            onOptionSelected = { option -> selectedOption = option }
+        )
+    }
+
+    // ★ النوافذ المنبثقة للأقسام
+    when (selectedOption) {
+        MenuOption.LICENSE -> LicenseDialog(onDismiss = { selectedOption = null })
+        MenuOption.SECURITY -> SecurityDialog(onDismiss = { selectedOption = null })
+        MenuOption.BACKUP -> BackupDialog(onDismiss = { selectedOption = null })
+        MenuOption.DANGER -> DangerZoneDialog(onDismiss = { selectedOption = null })
+        MenuOption.ABOUT -> AboutDialog(onDismiss = { selectedOption = null })
+        null -> {}
     }
 }
 
