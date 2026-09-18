@@ -62,11 +62,11 @@ fun SubjectsScreen(nav: NavController) {
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { editing = null; showDialog = true },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("إضافة مادة") }
-            )
+            FloatingActionButton(
+                onClick = { editing = null; showDialog = true }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "إضافة مادة")
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
@@ -91,7 +91,10 @@ fun SubjectsScreen(nav: NavController) {
                     }
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 90.dp)
+                ) {
                     items(filtered, key = { it.id }) { subject ->
                         SubjectCard(
                             subject = subject,
