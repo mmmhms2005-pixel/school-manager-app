@@ -34,7 +34,6 @@ import java.io.File
 
 /**
  * ★ دالة موحّدة لعرض PDF مباشرة في العارض.
- * تتجنب Chooser إن أمكن، وتفتح مباشرة.
  */
 fun openPdfDirectly(context: android.content.Context, file: File) {
     val uri: Uri = FileProvider.getUriForFile(
@@ -49,13 +48,12 @@ fun openPdfDirectly(context: android.content.Context, file: File) {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
-    // محاولة فتح عارض PDF مباشرة (تجنب Chooser)
     val pdfViewers = listOf(
-        "com.google.android.apps.docs",           // Google Drive PDF Viewer
-        "com.android.chrome",                     // Chrome
-        "com.google.android.apps.pdfviewer",      // Google PDF Viewer
-        "com.adobe.reader",                       // Adobe Reader
-        "com.microsoft.office.officehubrow"       // Microsoft Office
+        "com.google.android.apps.docs",
+        "com.android.chrome",
+        "com.google.android.apps.pdfviewer",
+        "com.adobe.reader",
+        "com.microsoft.office.officehubrow"
     )
 
     var opened = false
@@ -66,17 +64,14 @@ fun openPdfDirectly(context: android.content.Context, file: File) {
             opened = true
             break
         } catch (e: Exception) {
-            // لم يُفتح، جرّب التالي
         }
     }
 
-    // إذا لم يفتح أي عارض مباشرة، افتح Chooser
     if (!opened) {
         try {
             viewIntent.setPackage(null)
             context.startActivity(viewIntent)
         } catch (e: Exception) {
-            // Fallback: مشاركة
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/pdf"
                 putExtra(Intent.EXTRA_STREAM, uri)
@@ -111,6 +106,7 @@ fun ReportsScreen(nav: NavController) {
         ReportTile("annual_grades", "كشف درجات أعمال السنة", "📄", "لكل طالب في مادة وفترة"),
         ReportTile("student_report", "كشف الطالب الشامل", "👤", "كل المواد لطالب في فترة"),
         ReportTile("student_periods", "كشف الطالب عبر الفترات", "📅", "طالب × مادة × 8 فترات"),
+        ReportTile("monthly_certificate", "شهادة الطالب الشهرية", "🎓", "شهادات A5 لكل طالب"),
         ReportTile("class_report", "الكشف الشامل للصف", "👥", "كل الطلاب × كل الفترات"),
         ReportTile("final_results", "النتيجة النهائية والترتيب", "🏆", "النتيجة /100 + الأوائل"),
         ReportTile("analytics", "لوحة الإحصائيات", "📊", "تحليل درجات الصف")
@@ -162,6 +158,10 @@ fun ReportsScreen(nav: NavController) {
                         snackbar = snackbarHostState
                     )
                     "student_periods" -> StudentPeriodsScreen(
+                        dao = dao, scope = scope,
+                        snackbar = snackbarHostState
+                    )
+                    "monthly_certificate" -> MonthlyCertificateScreen(
                         dao = dao, scope = scope,
                         snackbar = snackbarHostState
                     )
@@ -415,7 +415,6 @@ fun AnnualGradesReportScreen(
                             )
                         }
 
-                        // ★ فتح PDF مباشرة
                         openPdfDirectly(ctx, file)
 
                         snackbar.showSnackbar(
