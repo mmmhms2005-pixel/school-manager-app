@@ -772,11 +772,12 @@ fun DangerZoneDialog(onDismiss: () -> Unit) {
             text = { Text("هل تريد إنشاء نسخة احتياطية قبل الحذف؟") },
             confirmButton = {
                 TextButton(onClick = {
-    showBackupOffer = false
-    scope.launch {
-        snackbar.showSnackbar("📋 قائمة")
-    }
-}) { Text("موافق") }
+                    showBackupOffer = false
+                    scope.launch {
+                        snackbar.showSnackbar("📋 قائمة")
+                    }
+                }) { Text("موافق") }
+            },
             dismissButton = {
                 TextButton(onClick = {
                     showBackupOffer = false
@@ -969,34 +970,4 @@ fun AboutDialog(onDismiss: () -> Unit) {
                 AboutFeature("👨‍🏫", "المعلمون والربط الدقيق")
                 AboutFeature("📝", "إدخال الدرجات")
                 AboutFeature("📊", "6 كشوفات احترافية")
-                AboutFeature("🖨️", "توليد PDF")
-                AboutFeature("💾", "النسخ الاحتياطي")
-                AboutFeature("🔐", "تشفير النسخ الاحتياطية")
-                AboutFeature("📴", "يعمل بدون إنترنت")
-
-                Spacer(Modifier.height(16.dp))
-                Divider()
-                Spacer(Modifier.height(10.dp))
-                Text("© 2026 — جميع الحقوق محفوظة",
-                    fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
-                Text("صُنع بـ ❤️ لخدمة التعليم",
-                    fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("إغلاق") }
-        }
-    )
-}
-
-@Composable
-private fun AboutFeature(emoji: String, text: String) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(emoji, fontSize = 15.sp)
-        Spacer(Modifier.width(8.dp))
-        Text(text, fontSize = 12.sp)
-    }
-}
+                AboutFeature("🖨️", "
