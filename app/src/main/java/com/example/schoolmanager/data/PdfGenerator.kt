@@ -36,7 +36,7 @@ object PdfGenerator {
     private const val LANDSCAPE_ROWS_PER_PAGE = 30
 
     // ★★★ عدد الشهادات في كل صفحة (يمكن تغييره إلى 4)
-    private const val CERTS_PER_PAGE = 3
+    private const val CERTS_PER_PAGE = 4
 
     data class SchoolInfo(
         val schoolName: String = "",
