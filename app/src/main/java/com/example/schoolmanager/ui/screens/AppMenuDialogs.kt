@@ -898,22 +898,25 @@ private fun performDeleteAllStudents(
     onDone: () -> Unit
 ) {
     scope.launch {
-        try {
+    try {
+        // ★★★ ابدأ التعديل: لاحظ القوسين الجديدين ★★★
+        withContext(NonCancellable) {
             dao.clearAllStudentGrades()
             dao.clearAllStudents()
-
-            snackbar.showSnackbar(
-                "✅ تم حذف جميع الطلاب ودرجاتهم",
-                duration = SnackbarDuration.Long
-            )
-            delay(1200)
-            onDone()
-        } catch (e: Exception) {
-            snackbar.showSnackbar(
-                "❌ فشل الحذف: ${e.message ?: "خطأ"}",
-                duration = SnackbarDuration.Long
-            )
         }
+        // ★★★ انتهى التعديل ★★★
+
+        snackbar.showSnackbar(
+            "✅ تم حذف جميع الطلاب ودرجاتهم",
+            duration = SnackbarDuration.Long
+        )
+        delay(1200)
+        onDone()
+    } catch (e: Exception) {
+        snackbar.showSnackbar(
+            "❌ فشل الحذف: ${e.message ?: "خطأ غير معروف"}",
+            duration = SnackbarDuration.Long
+        )
     }
 }
 
