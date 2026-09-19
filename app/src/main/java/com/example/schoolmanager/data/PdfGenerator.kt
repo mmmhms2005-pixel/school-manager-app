@@ -35,6 +35,9 @@ object PdfGenerator {
     private const val VERTICAL_ROWS_PER_PAGE = 35
     private const val LANDSCAPE_ROWS_PER_PAGE = 30
 
+    // ★★★ عدد الشهادات في كل صفحة (يمكن تغييره إلى 4)
+    private const val CERTS_PER_PAGE = 3
+
     data class SchoolInfo(
         val schoolName: String = "",
         val academicYear: String = "",
@@ -59,7 +62,6 @@ object PdfGenerator {
         val isMultiSubject: Boolean = false
     )
 
-    // ★ بيانات الشهادة الشهرية
     data class SubjectGrade(
         val subjectName: String,
         val score: Int,
@@ -76,7 +78,7 @@ object PdfGenerator {
     )
 
     // ═══════════════════════════════════════════
-    // الدالة الأصلية (التقارير العادية)
+    // التقارير العادية
     // ═══════════════════════════════════════════
 
     fun generate(
@@ -98,14 +100,14 @@ object PdfGenerator {
                 val width = if (report.isLandscape) A4_WIDTH_LS_PT else A4_WIDTH_PT
                 val height = if (report.isLandscape) A4_HEIGHT_LS_PT else A4_HEIGHT_PT
 
-                val pageInfo = PdfDocument.PageInfo.Builder(width, height, absolutePageNumber).create()
+                val pageInfo = PdfDocument.PageInfo.Builder(width.toInt(), height.toInt(), absolutePageNumber).create()
                 val page = doc.startPage(pageInfo)
 
                 val isLastPage = chunkIndex == totalPages - 1
                 drawReportPage(
                     canvas = page.canvas,
-                    pageWidth = width,
-                    pageHeight = height,
+                    pageWidth = width.toInt(),
+                    pageHeight = height.toInt(),
                     report = report,
                     school = school,
                     rowsChunk = chunk,
@@ -126,7 +128,7 @@ object PdfGenerator {
     }
 
     // ═══════════════════════════════════════════
-    // ★ دالة توليد الشهادات الشهرية (A5، شهادتان لكل A4)
+    // ★★★ الشهادات الشهرية (جدول أفقي + 3 في الصفحة)
     // ═══════════════════════════════════════════
 
     fun generateMonthlyCertificates(
@@ -139,66 +141,67 @@ object PdfGenerator {
         val doc = PdfDocument()
         val pageWidth = A4_WIDTH_PT
         val pageHeight = A4_HEIGHT_PT
+        val topMargin = 12f
+        val bottomMargin = 12f
+        val gap = 6f
+
+        val availableHeight = pageHeight - topMargin - bottomMargin - (CERTS_PER_PAGE - 1) * gap
+        val certHeight = availableHeight / CERTS_PER_PAGE
         val certWidth = pageWidth - 2 * MARGIN
-        val certHeight = (pageHeight - 3 * MARGIN) / 2f
 
         var pageNumber = 1
         var index = 0
 
         while (index < entries.size) {
-            val pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+            val pageInfo = PdfDocument.PageInfo.Builder(
+                pageWidth.toInt(), pageHeight.toInt(), pageNumber
+            ).create()
             val page = doc.startPage(pageInfo)
             val canvas = page.canvas
             canvas.drawColor(Color.WHITE)
 
-            // ★ الشهادة الأولى (في الأعلى)
-            val topY = MARGIN
-            drawMonthlyCertificate(
-                canvas = canvas,
-                x = MARGIN,
-                y = topY,
-                width = certWidth,
-                height = certHeight,
-                entry = entries[index],
-                school = school,
-                month = month
-            )
+            var currentY = topMargin
 
-            // ★ خط القص في المنتصف (متقطع)
-            val cutY = topY + certHeight + MARGIN / 2f
-            val dashPaint = Paint().apply {
-                color = Color.rgb(120, 120, 120)
-                strokeWidth = 0.8f
-                pathEffect = DashPathEffect(floatArrayOf(6f, 6f), 0f)
-            }
-            canvas.drawLine(10f, cutY, pageWidth - 10f, cutY, dashPaint)
+            for (i in 0 until CERTS_PER_PAGE) {
+                if (index + i >= entries.size) break
 
-            // رمز المقص في الطرف
-            val scissorPaint = TextPaint().apply {
-                color = Color.rgb(120, 120, 120)
-                textSize = 10f
-            }
-            canvas.drawText("✂", 4f, cutY + 3f, scissorPaint)
-            canvas.drawText("✂", pageWidth - 14f, cutY + 3f, scissorPaint)
-
-            // ★ الشهادة الثانية (في الأسفل) — إن وُجدت
-            if (index + 1 < entries.size) {
-                val bottomY = cutY + MARGIN / 2f
                 drawMonthlyCertificate(
                     canvas = canvas,
                     x = MARGIN,
-                    y = bottomY,
+                    y = currentY,
                     width = certWidth,
                     height = certHeight,
-                    entry = entries[index + 1],
+                    entry = entries[index + i],
                     school = school,
                     month = month
                 )
+
+                currentY += certHeight
+
+                // خط القص المتقطع
+                if (i < CERTS_PER_PAGE - 1 && index + i + 1 < entries.size) {
+                    val cutY = currentY + gap / 2f
+                    val dashPaint = Paint().apply {
+                        color = Color.rgb(120, 120, 120)
+                        strokeWidth = 0.8f
+                        pathEffect = DashPathEffect(floatArrayOf(5f, 5f), 0f)
+                    }
+                    canvas.drawLine(8f, cutY, pageWidth - 8f, cutY, dashPaint)
+
+                    val scissorPaint = TextPaint().apply {
+                        color = Color.rgb(120, 120, 120)
+                        textSize = 9f
+                    }
+                    canvas.drawText("✂", 3f, cutY + 3f, scissorPaint)
+                    canvas.drawText("✂", pageWidth - 13f, cutY + 3f, scissorPaint)
+                }
+
+                currentY += gap
             }
 
             doc.finishPage(page)
             pageNumber++
-            index += 2
+            index += CERTS_PER_PAGE
         }
 
         val outDir = File(context.cacheDir, "reports").apply { mkdirs() }
@@ -222,33 +225,33 @@ object PdfGenerator {
         val borderPaint = Paint().apply {
             color = Color.rgb(15, 118, 110)
             style = Paint.Style.STROKE
-            strokeWidth = 1.5f
+            strokeWidth = 1.2f
         }
         canvas.drawRect(x, y, x + width, y + height, borderPaint)
 
-        // ★ إطار داخلي خفيف
+        // إطار داخلي
         val innerBorder = Paint().apply {
             color = Color.rgb(200, 220, 218)
             style = Paint.Style.STROKE
             strokeWidth = 0.5f
         }
-        canvas.drawRect(x + 4f, y + 4f, x + width - 4f, y + height - 4f, innerBorder)
+        canvas.drawRect(x + 3f, y + 3f, x + width - 3f, y + height - 3f, innerBorder)
 
-        var cy = y + 10f
+        var cy = y + 8f
 
-        // ★ الشعار (مصغّر)
+        // ★ الشعار
         if (school.logoBase64.isNotBlank()) {
             try {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 if (bitmap != null) {
-                    val maxLogo = 26f
+                    val maxLogo = 22f
                     val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val w = if (bitmap.width > bitmap.height) maxLogo else maxLogo * ratio
                     val h = if (bitmap.width > bitmap.height) maxLogo / ratio else maxLogo
                     val lx = x + (width - w) / 2f
                     canvas.drawBitmap(bitmap, null, RectF(lx, cy, lx + w, cy + h), null)
-                    cy += h + 3f
+                    cy += h + 2f
                 }
             } catch (e: Exception) { }
         }
@@ -256,151 +259,145 @@ object PdfGenerator {
         // ★ اسم المدرسة
         val schoolPaint = TextPaint().apply {
             color = Color.BLACK
-            textSize = 11f
+            textSize = 10f
             isFakeBoldText = true
         }
-        drawCenteredText(canvas, school.schoolName.ifBlank { "اسم المدرسة" }, x + width / 2f, cy + 11f, schoolPaint)
-        cy += 13f
+        drawCenteredText(canvas, school.schoolName.ifBlank { "اسم المدرسة" }, x + width / 2f, cy + 10f, schoolPaint)
+        cy += 12f
 
-        // ★ العام الدراسي
-        if (school.academicYear.isNotBlank()) {
-            val yearPaint = TextPaint().apply {
-                color = Color.DKGRAY
-                textSize = 8f
-            }
-            drawCenteredText(canvas, school.academicYear, x + width / 2f, cy + 8f, yearPaint)
-            cy += 10f
+        // ★ العنوان + العام (سطر واحد)
+        val titleWithYear = if (school.academicYear.isNotBlank()) {
+            "شهادة الطالب الشهرية — ${school.academicYear}"
+        } else {
+            "شهادة الطالب الشهرية"
         }
-
-        // ★ العنوان
         val titlePaint = TextPaint().apply {
             color = Color.rgb(15, 118, 110)
-            textSize = 12f
+            textSize = 10f
             isFakeBoldText = true
         }
-        drawCenteredText(canvas, "شهادة الطالب الشهرية", x + width / 2f, cy + 12f, titlePaint)
-        cy += 16f
+        drawCenteredText(canvas, titleWithYear, x + width / 2f, cy + 10f, titlePaint)
+        cy += 13f
 
-        // ★ خط فاصل
-        canvas.drawLine(x + 15f, cy, x + width - 15f, cy, Paint().apply {
-            color = Color.rgb(15, 118, 110); strokeWidth = 1f
+        // خط فاصل
+        canvas.drawLine(x + 12f, cy, x + width - 12f, cy, Paint().apply {
+            color = Color.rgb(15, 118, 110)
+            strokeWidth = 0.8f
         })
-        cy += 6f
+        cy += 4f
 
-        // ★ معلومات الطالب
-        val infoPaint = TextPaint().apply {
-            color = Color.BLACK
-            textSize = 9f
-            isFakeBoldText = true
-            textAlign = Paint.Align.RIGHT
-        }
+        // ★ معلومات الطالب (سطر واحد)
         val sectionPart = if (entry.sectionName.isNotBlank() && entry.sectionName != "—") {
-            "  |  الشعبة: ${entry.sectionName}"
+            " / ${entry.sectionName}"
         } else ""
 
-        canvas.drawText("👤 ${entry.studentName}", x + width - 12f, cy + 9f, infoPaint)
-        cy += 12f
-        canvas.drawText("🏫 ${entry.className}$sectionPart  |  📅 $month", x + width - 12f, cy + 9f, infoPaint)
-        cy += 14f
+        val infoLine = "👤 ${entry.studentName}   |   🏫 ${entry.className}$sectionPart   |   📅 $month"
+        val studentPaint = TextPaint().apply {
+            color = Color.BLACK
+            textSize = 8f
+            isFakeBoldText = true
+        }
+        drawCenteredText(canvas, infoLine, x + width / 2f, cy + 8f, studentPaint)
+        cy += 11f
 
-        // ★ الجدول
-        val tableLeft = x + 12f
-        val tableWidth = width - 24f
-        val cols = listOf(0.45f, 0.13f, 0.13f, 0.29f).map { it * tableWidth }
-        val headers = listOf("المادة", "الدرجة", "من", "التقدير")
+        // ═══ الجدول الأفقي ═══
+        val tableLeft = x + 10f
+        val tableWidth = width - 20f
+        val numCols = entry.grades.size.coerceAtLeast(1)
+        val colWidth = tableWidth / numCols
 
-        val rowH = 11f
+        val rowH = 15f
         val headH = 13f
 
-        // رأس الجدول
-        canvas.drawRect(tableLeft, cy, tableLeft + tableWidth, cy + headH, Paint().apply {
-            color = Color.rgb(241, 245, 249)
-        })
-
+        // ★ صف العناوين (أسماء المواد)
         var cx = tableLeft + tableWidth
-        headers.forEachIndexed { i, h ->
-            val colW = cols[i]
-            val cellX = cx - colW
+        entry.grades.forEach { g ->
+            val cellX = cx - colWidth
+
+            canvas.drawRect(cellX, cy, cx, cy + headH, Paint().apply {
+                color = Color.rgb(241, 245, 249)
+            })
+
             val hp = TextPaint().apply {
-                color = Color.BLACK; textSize = 8f; isFakeBoldText = true
+                color = Color.BLACK
+                textSize = 7.5f
+                isFakeBoldText = true
                 textAlign = Paint.Align.CENTER
             }
-            canvas.drawText(h, cellX + colW / 2f, cy + headH / 2f + 3f, hp)
+
+            val subjectText = if (g.subjectName.length > 10) {
+                g.subjectName.substring(0, 9) + "…"
+            } else g.subjectName
+
+            canvas.drawText(subjectText, cellX + colWidth / 2f, cy + headH / 2f + 3f, hp)
             canvas.drawRect(cellX, cy, cx, cy + headH, borderPaint)
             cx = cellX
         }
         cy += headH
 
-        // صفوف البيانات
-        val bodyPaint = TextPaint().apply {
-            color = Color.BLACK; textSize = 8f; textAlign = Paint.Align.CENTER
-        }
-        val bodyBoldPaint = TextPaint().apply {
-            color = Color.rgb(15, 118, 110); textSize = 8f
-            textAlign = Paint.Align.CENTER; isFakeBoldText = true
-        }
-
+        // ★ صف الدرجات
+        cx = tableLeft + tableWidth
         entry.grades.forEach { g ->
-            cx = tableLeft + tableWidth
-            val vals = listOf(g.subjectName, "${g.score}", "${g.maxScore}", g.rating)
-            vals.forEachIndexed { i, v ->
-                val colW = cols[i]
-                val cellX = cx - colW
-                val p = if (i == 3) bodyBoldPaint else bodyPaint
-                canvas.drawText(v, cellX + colW / 2f, cy + rowH / 2f + 3f, p)
-                canvas.drawRect(cellX, cy, cx, cy + rowH, borderPaint)
-                cx = cellX
+            val cellX = cx - colWidth
+
+            val dp = TextPaint().apply {
+                color = Color.rgb(15, 118, 110)
+                textSize = 8.5f
+                isFakeBoldText = true
+                textAlign = Paint.Align.CENTER
             }
-            cy += rowH
+
+            val scoreText = "${g.score} من ${g.maxScore}"
+
+            canvas.drawText(scoreText, cellX + colWidth / 2f, cy + rowH / 2f + 3f, dp)
+            canvas.drawRect(cellX, cy, cx, cy + rowH, borderPaint)
+            cx = cellX
         }
+        cy += rowH + 3f
 
-        cy += 5f
-
-        // ★ الإجماليات
+        // ★ الإجماليات (سطر واحد)
         val totalScore = entry.grades.sumOf { it.score }
         val totalMax = entry.grades.sumOf { it.maxScore }
         val avg = if (entry.grades.isNotEmpty()) totalScore.toDouble() / entry.grades.size else 0.0
         val firstMax = entry.grades.firstOrNull()?.maxScore ?: 20
         val overallRating = ratingForPercent((avg / firstMax * 100).toInt())
 
-        val totalPaint = TextPaint().apply {
-            color = Color.BLACK; textSize = 9f; isFakeBoldText = true
-            textAlign = Paint.Align.RIGHT
+        val totalsPaint = TextPaint().apply {
+            color = Color.BLACK
+            textSize = 8f
+            isFakeBoldText = true
         }
-        canvas.drawText("المجموع: $totalScore / $totalMax", x + width - 12f, cy + 9f, totalPaint)
-        cy += 11f
-        canvas.drawText("المتوسط: ${String.format("%.2f", avg)} / $firstMax", x + width - 12f, cy + 9f, totalPaint)
-        cy += 11f
 
-        val ratingPaint = TextPaint().apply {
-            color = Color.rgb(15, 118, 110); textSize = 10f; isFakeBoldText = true
-            textAlign = Paint.Align.RIGHT
-        }
-        canvas.drawText("التقدير العام: $overallRating", x + width - 12f, cy + 10f, ratingPaint)
+        val totalsText = "المجموع: $totalScore / $totalMax   |   المتوسط: ${String.format("%.2f", avg)} / $firstMax   |   التقدير: $overallRating"
+        drawCenteredText(canvas, totalsText, x + width / 2f, cy + 8f, totalsPaint)
         cy += 14f
 
-        // ★ التوقيعات (إن سمحت المساحة)
-        if (cy + 28f < y + height - 5f) {
-            val sigY = y + height - 16f
-            val third = tableWidth / 3f
-            val positions = listOf(
-                x + width - 12f - third / 2f,
-                x + width / 2f,
-                x + 12f + third / 2f
-            )
-            val labels = listOf("معلم المادة", "مربي الصف", "مدير المدرسة")
-            val sigPaint = TextPaint().apply {
-                color = Color.DKGRAY; textSize = 7f
-                textAlign = Paint.Align.CENTER; isFakeBoldText = true
-            }
-            val sigLinePaint = Paint().apply {
-                color = Color.DKGRAY; strokeWidth = 0.5f
-            }
-            positions.forEachIndexed { i, px ->
-                canvas.drawLine(px - third * 0.38f, sigY, px + third * 0.38f, sigY, sigLinePaint)
-                canvas.drawText(labels[i], px, sigY + 8f, sigPaint)
-            }
+        // ═══ ★ التوقيعات مرفوعة (فوراً بعد المحتوى) ═══
+        val sigY = cy + 6f
+        val third = tableWidth / 3f
+        val positions = listOf(
+            x + width - 10f - third / 2f,
+            x + width / 2f,
+            x + 10f + third / 2f
+        )
+
+        val labels = listOf("معلم المادة", "مربي الصف", "مدير المدرسة")
+        val sigPaint = TextPaint().apply {
+            color = Color.DKGRAY
+            textSize = 7f
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
         }
+        val sigLinePaint = Paint().apply {
+            color = Color.DKGRAY
+            strokeWidth = 0.5f
+        }
+
+        positions.forEachIndexed { i, px ->
+            canvas.drawLine(px - third * 0.35f, sigY, px + third * 0.35f, sigY, sigLinePaint)
+            canvas.drawText(labels[i], px, sigY + 8f, sigPaint)
+        }
+        // ★ المساحة المتبقية أسفل الشهادة فارغة (للسماح بـ 3 أو 4 شهادات)
     }
 
     private fun ratingForPercent(percent: Int): String {
@@ -415,7 +412,7 @@ object PdfGenerator {
     }
 
     // ═══════════════════════════════════════════
-    // دوال التقارير العادية
+    // دالة التقارير العادية (بقيت كما هي)
     // ═══════════════════════════════════════════
 
     private fun drawReportPage(
@@ -433,7 +430,6 @@ object PdfGenerator {
         var y = MARGIN + 5f
         val centerX = pageWidth / 2f
 
-        // الشعار
         if (school.logoBase64.isNotBlank()) {
             try {
                 val bytes = Base64.decode(school.logoBase64, Base64.DEFAULT)
