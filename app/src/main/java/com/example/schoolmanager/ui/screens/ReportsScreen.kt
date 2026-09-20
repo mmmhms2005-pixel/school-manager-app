@@ -493,3 +493,4 @@ private fun buildAnnualGradesRows(
         }
     }
 }
+}
