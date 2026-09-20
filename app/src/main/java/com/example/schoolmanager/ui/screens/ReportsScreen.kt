@@ -42,49 +42,14 @@ fun openPdfDirectly(context: android.content.Context, file: File) {
         file
     )
 
-    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, "application/pdf")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-
-    val pdfViewers = listOf(
-        "com.google.android.apps.docs",
-        "com.android.chrome",
-        "com.google.android.apps.pdfviewer",
-        "com.adobe.reader",
-        "com.microsoft.office.officehubrow"
-    )
-
-    var opened = false
-    for (pkg in pdfViewers) {
-        try {
-            viewIntent.setPackage(pkg)
-            context.startActivity(viewIntent)
-            opened = true
-            break
-        } catch (e: Exception) {
-        }
-    }
-
-    if (!opened) {
-        try {
-            viewIntent.setPackage(null)
-            context.startActivity(viewIntent)
-        } catch (e: Exception) {
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/pdf"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(
-                Intent.createChooser(shareIntent, "افتح PDF").apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            )
-        }
-    }
+    val viewIntent = Intent(Intent.ACTION_SEND).apply {
+    type = "application/pdf"
+    putExtra(Intent.EXTRA_STREAM, uri)
+    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 }
+context.startActivity(Intent.createChooser(viewIntent, "طباعة أو مشاركة الكشف"))
+    
 
 data class ReportTile(
     val id: String,
