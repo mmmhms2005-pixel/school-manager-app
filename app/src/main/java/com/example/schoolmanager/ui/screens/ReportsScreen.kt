@@ -43,8 +43,9 @@ fun openPdfDirectly(context: android.content.Context, file: File) {
         file
     )
 
-    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, "application/pdf")
+    val viewIntent = Intent(Intent.ACTION_SEND).apply {
+    type = "application/pdf"
+    putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
