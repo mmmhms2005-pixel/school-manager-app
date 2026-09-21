@@ -105,6 +105,7 @@ fun ReportsScreen(nav: NavController) {
         ReportTile("annual_grades", "كشف درجات أعمال السنة", "📄", "لكل طالب في مادة وفترة"),
         ReportTile("student_report", "كشف الطالب الشامل", "👤", "كل المواد لطالب في فترة"),
         ReportTile("student_periods", "كشف الطالب عبر الفترات", "📅", "طالب × مادة × 8 فترات"),
+        ReportTile("monthly_certificate", "شهادة شهرية", "📜", "طباعة الشهادات الشهرية"),
         ReportTile("class_report", "الكشف الشامل للصف", "👥", "كل الطلاب × كل الفترات"),
         ReportTile("final_results", "النتيجة النهائية والترتيب", "🏆", "النتيجة /100 + الأوائل"),
         ReportTile("analytics", "لوحة الإحصائيات", "📊", "تحليل درجات الصف")
