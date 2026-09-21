@@ -162,9 +162,6 @@ fun DashboardScreen(nav: NavController) {
         MenuOption.DANGER -> DangerZoneDialog(onDismiss = { selectedOption = null })
         MenuOption.ABOUT -> AboutDialog(onDismiss = { selectedOption = null })
         null -> {}
-        MenuOption.DELETE_STUDENTS -> {
-    // اتركه فارغاً هنا
-}
 else -> { }
     }
 }
