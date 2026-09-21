@@ -36,6 +36,33 @@ import java.io.File
  * ★ دالة موحّدة لعرض PDF مباشرة في العارض.
  * تتجنب Chooser إن أمكن، وتفتح مباشرة.
  */
+private fun savePdfToDownloads(context: android.content.Context, file: java.io.File) {
+    try {
+        val fileName = file.name
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+            }
+            val uri = context.contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            if (uri != null) {
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    file.inputStream().use { inputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+            }
+        } else {
+            val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+            val destFile = java.io.File(downloadsDir, fileName)
+            file.copyTo(destFile, overwrite = true)
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
 fun openPdfDirectly(context: android.content.Context, file: File) {
     val uri: Uri = FileProvider.getUriForFile(
         context,
@@ -50,46 +77,12 @@ fun openPdfDirectly(context: android.content.Context, file: File) {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
-    // محاولة فتح عارض PDF مباشرة (تجنب Chooser)
-    val pdfViewers = listOf(
-        "com.google.android.apps.docs",           // Google Drive PDF Viewer
-        "com.android.chrome",                     // Chrome
-        "com.google.android.apps.pdfviewer",      // Google PDF Viewer
-        "com.adobe.reader",                       // Adobe Reader
-        "com.microsoft.office.officehubrow"       // Microsoft Office
-    )
+// ★ حفظ الملف في مجلد التنزيلات ★
+savePdfToDownloads(context, file)
 
-    var opened = false
-    for (pkg in pdfViewers) {
-        try {
-            viewIntent.setPackage(pkg)
-            context.startActivity(viewIntent)
-            opened = true
-            break
-        } catch (e: Exception) {
-            // لم يُفتح، جرّب التالي
-        }
-    }
-
-    // إذا لم يفتح أي عارض مباشرة، افتح Chooser
-    if (!opened) {
-        try {
-            viewIntent.setPackage(null)
-            context.startActivity(viewIntent)
-        } catch (e: Exception) {
-            // Fallback: مشاركة
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/pdf"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(
-                Intent.createChooser(shareIntent, "افتح PDF").apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            )
-        }
-    }
+// ★ فتح نافذة الطباعة أو المشاركة ★
+context.startActivity(Intent.createChooser(viewIntent, "طباعة أو مشاركة الكشف"))
+    
 }
 
 data class ReportTile(
