@@ -573,7 +573,7 @@ object PdfGenerator {
     canvas: Canvas, pageWidth: Int, pageHeight: Int,
     school: SchoolInfo, isMultiSubject: Boolean // يمكنك إبقاء هذا المتغير حتى لو لم نستخدمه
 ) {
-    val signLineY = pageHeight - 75f
+        val signLineY = pageHeight - 75f
 
     val labelPaint = TextPaint().apply {
         color = Color.BLACK; textSize = 10f
@@ -588,43 +588,76 @@ object PdfGenerator {
         textAlign = Paint.Align.CENTER
     }
     val emptyLinePaint = TextPaint().apply {
-    color = Color.rgb(130, 130, 130)
-    textSize = 9f
-    textAlign = Paint.Align.CENTER
-}
+        color = Color.rgb(130, 130, 130); textSize = 9f
+        textAlign = Paint.Align.CENTER
+    }
     val linePaint = Paint().apply {
         color = Color.BLACK; strokeWidth = 1f
     }
 
+    // ★★★ تحديد التسميات والأسماء حسب نوع الكشف ★★★
+    val labels: List<String>
+    val values: List<String>
+
+    if (isMultiSubject) {
+        // كشف متعدد المواد → مربي الصف + مدير المدرسة
+        labels = listOf("مدير المدرسة", "مربي الصف")
+        values = listOf(school.principalName, school.homeroomTeacherName)
+    } else {
+        // كشف مادة واحدة → معلم المادة + مدير المدرسة
+        labels = listOf("مدير المدرسة", "معلم المادة")
+        values = listOf(school.principalName, school.teacherName)
+    }
+    // ★★★ نهاية المنطق ★★★
+
     val third = (pageWidth - 2 * MARGIN) / 3f
     val positions = listOf(
-        pageWidth - MARGIN - third / 2f, // يمين (مدير المدرسة)
-        MARGIN + third / 2f              // يسار (مربي الصف)
+        pageWidth - MARGIN - third / 2f, // يمين: مدير المدرسة
+        pageWidth / 2f,                  // وسط: الختم الرسمي
+        MARGIN + third / 2f              // يسار: معلم المادة أو مربي الصف
     )
 
-    // ★★★ التعديل: تثبيت التسميات لطلبك ★★★
-    val labels = listOf("مدير المدرسة", "مربي الصف")
-    
-    // ★★★ التعديل: جلب الأسماء من SchoolInfo ★★★
-    val values = listOf(
-        school.principalName,  // اسم المدير
-        school.homeroomTeacherName // اسم المربي
-    )
-
-    positions.forEachIndexed { i, x ->
-        canvas.drawLine(x - third * 0.35f, signLineY, x + third * 0.35f, signLineY, linePaint)
-        canvas.drawText(labels[i], x, signLineY + 12f, labelPaint)
-
-        val signHintX = x + third * 0.35f
-        canvas.drawText("التوقيع/", signHintX, signLineY + 12f, signHintPaint)
-
-        if (values[i].isNotBlank()) {
-            canvas.drawText(values[i], x, signLineY + 25f, namePaint)
-        } else {
-            canvas.drawText("____________________", x, signLineY + 25f, emptyLinePaint)
-        }
+    // 1. التوقيع الأيمن (مدير المدرسة)
+    var x = positions[0]
+    canvas.drawLine(x - third * 0.35f, signLineY, x + third * 0.35f, signLineY, linePaint)
+    canvas.drawText(labels[0], x, signLineY + 12f, labelPaint)
+    val signHintX1 = x + third * 0.35f
+    canvas.drawText("التوقيع/", signHintX1, signLineY + 12f, signHintPaint)
+    if (values[0].isNotBlank()) {
+        canvas.drawText(values[0], x, signLineY + 25f, namePaint)
+    } else {
+        canvas.drawText("____________________", x, signLineY + 25f, emptyLinePaint)
     }
-    }        
+
+    // 2. التوقيع الأيسر (معلم المادة أو مربي الصف)
+    x = positions[2]
+    canvas.drawLine(x - third * 0.35f, signLineY, x + third * 0.35f, signLineY, linePaint)
+    canvas.drawText(labels[1], x, signLineY + 12f, labelPaint)
+    val signHintX2 = x + third * 0.35f
+    canvas.drawText("التوقيع/", signHintX2, signLineY + 12f, signHintPaint)
+    if (values[1].isNotBlank()) {
+        canvas.drawText(values[1], x, signLineY + 25f, namePaint)
+    } else {
+        canvas.drawText("____________________", x, signLineY + 25f, emptyLinePaint)
+    }
+
+    // 3. الختم الرسمي في المنتصف
+    x = positions[1]
+    val stampRadius = 25f
+    val stampPaint = Paint().apply {
+        color = Color.RED
+        style = Paint.Style.STROKE
+        strokeWidth = 1.5f
+    }
+    canvas.drawCircle(x, signLineY - 5f, stampRadius, stampPaint)
+    val stampTextPaint = TextPaint().apply {
+        color = Color.RED
+        textSize = 7f
+        textAlign = Paint.Align.CENTER
+    }
+    canvas.drawText("الختم", x, signLineY - 8f, stampTextPaint)
+    canvas.drawText("الرسمي", x, signLineY - 1f, stampTextPaint)
+} // ★★★ هذا القوس يغلق دالة drawSignatures ★★★
 
     private fun drawCenteredText(
         canvas: Canvas, text: String,
