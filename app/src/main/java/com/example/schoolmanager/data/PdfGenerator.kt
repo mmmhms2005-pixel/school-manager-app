@@ -619,7 +619,7 @@ object PdfGenerator {
             canvas.drawText("____________________", x, signLineY + 25f, emptyLinePaint)
         }
     }
-
+    }        
 
     private fun drawCenteredText(
         canvas: Canvas, text: String,
