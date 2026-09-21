@@ -120,11 +120,12 @@ object PdfGenerator {
             }
         }
 
-        val outDir = File(context.cacheDir, "reports").apply { mkdirs() }
-        val outFile = File(outDir, fileName)
-        FileOutputStream(outFile).use { doc.writeTo(it) }
-        doc.close()
-        return outFile
+        val outputStream = FileOutputStream(outFile)
+doc.writeTo(outputStream)
+outputStream.flush()
+outputStream.close()
+doc.close()
+return outFile
     }
 
     // ═══════════════════════════════════════════
