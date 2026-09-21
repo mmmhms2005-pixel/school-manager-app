@@ -120,13 +120,16 @@ object PdfGenerator {
             }
         }
 
-        val outputStream = FileOutputStream(outFile)
-doc.writeTo(outputStream)
-outputStream.flush()
-outputStream.close()
-doc.close()
-return outFile
-    }
+            val outDir = File(context.cacheDir, "reports").apply { mkdirs() }
+    val outFile = File(outDir, fileName)
+
+    val outputStream = FileOutputStream(outFile)
+    doc.writeTo(outputStream)
+    outputStream.flush()
+    outputStream.close()
+    doc.close()
+    return outFile
+}
 
     // ═══════════════════════════════════════════
     // ★★★ الشهادات الشهرية (جدول أفقي + 3 في الصفحة)
