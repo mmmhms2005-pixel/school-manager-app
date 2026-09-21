@@ -377,31 +377,65 @@ object PdfGenerator {
         cy += 14f
 
         // ═══ ★ التوقيعات مرفوعة (فوراً بعد المحتوى) ═══
-        val sigY = cy + 6f
-        val third = tableWidth / 3f
-        val positions = listOf(
-            x + width - 10f - third / 2f,
-            x + width / 2f,
-            x + 10f + third / 2f
-        )
+        // === ★ توقيعات الشهادة الشهرية (مدير المدرسة + مربي الصف + الختم الرسمي) ★ ===
+val sigY = cy + 6f
+val third = tableWidth / 3f
 
-        val labels = listOf("معلم المادة", "مربي الصف", "مدير المدرسة")
-        val sigPaint = TextPaint().apply {
-            color = Color.DKGRAY
-            textSize = 7f
-            textAlign = Paint.Align.CENTER
-            isFakeBoldText = true
-        }
-        val sigLinePaint = Paint().apply {
-            color = Color.DKGRAY
-            strokeWidth = 0.5f
-        }
+// ★ تحديد موقعين فقط: يمين (مدير المدرسة) و يسار (مربي الصف) ★
+val positions = listOf(
+    x + width - 10f - third / 2f, // يمين: مدير المدرسة
+    x + 10f + third / 2f           // يسار: مربي الصف
+)
 
-        positions.forEachIndexed { i, px ->
-            canvas.drawLine(px - third * 0.35f, sigY, px + third * 0.35f, sigY, sigLinePaint)
-            canvas.drawText(labels[i], px, sigY + 8f, sigPaint)
-        }
-        // ★ المساحة المتبقية أسفل الشهادة فارغة (للسماح بـ 3 أو 4 شهادات)
+// ★ التسميات والقيم: مدير المدرسة + مربي الصف فقط (بدون معلم المادة) ★
+val labels = listOf("مدير المدرسة", "مربي الصف")
+val values = listOf(school.principalName, school.homeroomTeacherName)
+
+val sigPaint = TextPaint().apply {
+    color = Color.DKGRAY
+    textSize = 7f
+    textAlign = Paint.Align.CENTER
+    isFakeBoldText = true
+}
+val namePaint = TextPaint().apply {
+    color = Color.rgb(30, 30, 30)
+    textSize = 6f
+    textAlign = Paint.Align.CENTER
+}
+val sigLinePaint = Paint().apply {
+    color = Color.DKGRAY
+    strokeWidth = 0.5f
+}
+
+// ★ رسم التوقيعين (الخط + التسمية + الاسم) ★
+positions.forEachIndexed { i, px ->
+    // رسم الخط
+    canvas.drawLine(px - third * 0.35f, sigY, px + third * 0.35f, sigY, sigLinePaint)
+    // رسم التسمية (مدير المدرسة / مربي الصف)
+    canvas.drawText(labels[i], px, sigY + 8f, sigPaint)
+    // رسم الاسم (إذا كان موجوداً)
+    if (values[i].isNotBlank()) {
+        canvas.drawText(values[i], px, sigY + 16f, namePaint)
+    }
+}
+
+// ★ رسم الختم الرسمي في المنتصف ★
+val stampX = x + width / 2f
+val stampRadius = 15f
+val stampPaint = Paint().apply {
+    color = Color.RED
+    style = Paint.Style.STROKE
+    strokeWidth = 1f
+}
+canvas.drawCircle(stampX, sigY + 2f, stampRadius, stampPaint)
+
+val stampTextPaint = TextPaint().apply {
+    color = Color.RED
+    textSize = 5f
+    textAlign = Paint.Align.CENTER
+}
+canvas.drawText("الختم", stampX, sigY, stampTextPaint)
+canvas.drawText("الرسمي", stampX, sigY + 5f, stampTextPaint)
     }
 
     private fun ratingForPercent(percent: Int): String {
