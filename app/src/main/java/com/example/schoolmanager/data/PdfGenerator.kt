@@ -587,6 +587,11 @@ object PdfGenerator {
         color = Color.rgb(30, 30, 30); textSize = 9f
         textAlign = Paint.Align.CENTER
     }
+    val emptyLinePaint = TextPaint().apply {
+    color = Color.rgb(130, 130, 130)
+    textSize = 9f
+    textAlign = Paint.Align.CENTER
+}
     val linePaint = Paint().apply {
         color = Color.BLACK; strokeWidth = 1f
     }
