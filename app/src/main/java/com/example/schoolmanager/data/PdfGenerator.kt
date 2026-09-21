@@ -570,56 +570,56 @@ object PdfGenerator {
     }
 
     private fun drawSignatures(
-        canvas: Canvas, pageWidth: Int, pageHeight: Int,
-        school: SchoolInfo, isMultiSubject: Boolean
-    ) {
-        val signLineY = pageHeight - 75f
+    canvas: Canvas, pageWidth: Int, pageHeight: Int,
+    school: SchoolInfo, isMultiSubject: Boolean // يمكنك إبقاء هذا المتغير حتى لو لم نستخدمه
+) {
+    val signLineY = pageHeight - 75f
 
-        val labelPaint = TextPaint().apply {
-            color = Color.BLACK; textSize = FONT_SIGNATURE
-            textAlign = Paint.Align.CENTER; isFakeBoldText = true
-        }
-        val signHintPaint = TextPaint().apply {
-            color = Color.DKGRAY; textSize = 9f
-            textAlign = Paint.Align.RIGHT; isFakeBoldText = true
-        }
-        val namePaint = TextPaint().apply {
-            color = Color.rgb(30, 30, 30); textSize = FONT_SIGNATURE
-            textAlign = Paint.Align.CENTER; isFakeBoldText = true
-        }
-        val emptyLinePaint = TextPaint().apply {
-            color = Color.rgb(130, 130, 130); textSize = 10f
-            textAlign = Paint.Align.CENTER; isFakeBoldText = true
-        }
-        val linePaint = Paint().apply { color = Color.DKGRAY; strokeWidth = 0.7f }
+    val labelPaint = TextPaint().apply {
+        color = Color.BLACK; textSize = 10f
+        textAlign = Paint.Align.CENTER
+    }
+    val signHintPaint = TextPaint().apply {
+        color = Color.DKGRAY; textSize = 8f
+        textAlign = Paint.Align.RIGHT
+    }
+    val namePaint = TextPaint().apply {
+        color = Color.rgb(30, 30, 30); textSize = 9f
+        textAlign = Paint.Align.CENTER
+    }
+    val linePaint = Paint().apply {
+        color = Color.BLACK; strokeWidth = 1f
+    }
 
-        val third = (pageWidth - 2 * MARGIN) / 3f
-        val positions = listOf(
-            pageWidth - MARGIN - third / 2f,
-            pageWidth / 2f,
-            MARGIN + third / 2f
-        )
+    val third = (pageWidth - 2 * MARGIN) / 3f
+    val positions = listOf(
+        pageWidth - MARGIN - third / 2f, // يمين (مدير المدرسة)
+        MARGIN + third / 2f              // يسار (مربي الصف)
+    )
 
-        val firstLabel = if (isMultiSubject) "مربي الصف" else "معلم المادة"
-        val firstValue = if (isMultiSubject) school.homeroomTeacherName else school.teacherName
+    // ★★★ التعديل: تثبيت التسميات لطلبك ★★★
+    val labels = listOf("مدير المدرسة", "مربي الصف")
+    
+    // ★★★ التعديل: جلب الأسماء من SchoolInfo ★★★
+    val values = listOf(
+        school.principalName,  // اسم المدير
+        school.homeroomTeacherName // اسم المربي
+    )
 
-        val labels = listOf(firstLabel, "مدير المدرسة", "الختم الرسمي")
-        val values = listOf(firstValue, school.principalName, "")
+    positions.forEachIndexed { i, x ->
+        canvas.drawLine(x - third * 0.35f, signLineY, x + third * 0.35f, signLineY, linePaint)
+        canvas.drawText(labels[i], x, signLineY + 12f, labelPaint)
 
-        positions.forEachIndexed { i, x ->
-            canvas.drawLine(x - third * 0.32f, signLineY, x + third * 0.32f, signLineY, linePaint)
-            canvas.drawText(labels[i], x, signLineY - 8, labelPaint)
+        val signHintX = x + third * 0.35f
+        canvas.drawText("التوقيع/", signHintX, signLineY + 12f, signHintPaint)
 
-            val signHintX = x + third * 0.18f
-            canvas.drawText("التوقيع/", signHintX, signLineY + 16, signHintPaint)
-
-            if (values[i].isNotBlank()) {
-                canvas.drawText(values[i], x, signLineY + 32, namePaint)
-            } else {
-                canvas.drawText("_______________", x, signLineY + 32, emptyLinePaint)
-            }
+        if (values[i].isNotBlank()) {
+            canvas.drawText(values[i], x, signLineY + 25f, namePaint)
+        } else {
+            canvas.drawText("____________________", x, signLineY + 25f, emptyLinePaint)
         }
     }
+
 
     private fun drawCenteredText(
         canvas: Canvas, text: String,
