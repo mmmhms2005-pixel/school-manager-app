@@ -27,11 +27,11 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassReportScreen(
+    nav: NavController,
     dao: SchoolDao,
     scope: CoroutineScope,
     snackbar: SnackbarHostState
-) {
-    val ctx = LocalContext.current
+) {    val ctx = LocalContext.current
     val app = ctx.applicationContext as SchoolApplication
 
     val classes by dao.classes().collectAsState(initial = emptyList())
