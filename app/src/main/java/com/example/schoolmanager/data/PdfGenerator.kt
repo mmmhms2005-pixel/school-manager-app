@@ -294,7 +294,7 @@ object PdfGenerator {
         val doc = PdfDocument()
         var absolutePageNumber = 1
 
-        try {
+
 
             reports.forEach { report ->
 
