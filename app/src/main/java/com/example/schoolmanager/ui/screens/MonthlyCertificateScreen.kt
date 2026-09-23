@@ -30,10 +30,12 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonthlyCertificateScreen(
+    nav: NavController,
     dao: SchoolDao,
     scope: CoroutineScope,
     snackbar: SnackbarHostState
 ) {
+    val allTeachers by dao.teachers().collectAsState(initial = emptyList())
     val ctx = LocalContext.current
     val app = ctx.applicationContext as SchoolApplication
 
