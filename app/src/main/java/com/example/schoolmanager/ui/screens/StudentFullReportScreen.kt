@@ -269,7 +269,7 @@ fun StudentFullReportScreen(
         ) {
             Icon(Icons.Default.Description, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("توليد PDF", fontWeight = FontWeight.Bold)
+            Text("طباعة PDF", fontWeight = FontWeight.Bold)
         }
 
         Spacer(Modifier.height(16.dp))
