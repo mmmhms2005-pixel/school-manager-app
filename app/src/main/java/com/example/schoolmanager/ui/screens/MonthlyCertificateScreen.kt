@@ -201,8 +201,8 @@ fun MonthlyCertificateScreen(
                         )
                         val homeroomName = HomeroomTeacherHelper.getName(
     teachers = allTeachers,
-    classId = selectedClassId,
-    sectionId = selectedSectionId
+classId = classId,
+sectionId = sectionId
 )
 
                         val schoolInfo = PdfGenerator.SchoolInfo(
