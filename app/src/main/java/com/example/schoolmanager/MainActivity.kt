@@ -131,6 +131,10 @@ fun AppNav() {
         composable("reports") { ReportsScreen(nav) }
         composable("settings") { SettingsScreen(nav) }
         composable("about") { AboutScreen(nav) }
+        composable("pdf_preview/{filePath}") { backStackEntry ->
+    val filePath = backStackEntry.arguments?.getString("filePath") ?: ""
+    PdfPreviewScreen(nav = nav, filePath = filePath)
+}
     }
 }
 
