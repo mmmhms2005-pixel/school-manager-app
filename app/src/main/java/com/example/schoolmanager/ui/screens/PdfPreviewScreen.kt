@@ -23,7 +23,7 @@ import java.io.File
 @Composable
 fun PdfPreviewScreen(nav: NavController, filePath: String) {
     val context = LocalContext.current
-    val file = File(filePath)
+    val file = File(context.cacheDir, "reports/$filePath")
     var pages by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
