@@ -191,7 +191,7 @@ fun ReportsScreen(nav: NavController) {
 }
 
 @Composable
-fun ReportTileCard(report: ReportTile, onClick: () -> Unit) {
+fun ReportTileCard(report: ReportTile, nav: NavController, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().height(140.dp)
