@@ -1,6 +1,7 @@
 package com.example.schoolmanager
 
 import android.os.Bundle
+import com.example.schoolmanager.ui.screens.PdfPreviewScreen
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
