@@ -149,9 +149,12 @@ fun ReportsScreen(nav: NavController) {
             } else {
                 when (selectedReport) {
                     "annual_grades" -> AnnualGradesReportScreen(
-                        dao = dao, app = app, scope = scope,
-                        snackbar = snackbarHostState
-                    )
+    nav = nav,
+    dao = dao,
+    app = app,
+    scope = scope,
+    snackbar = snackbarHostState
+)
                     "student_report" -> StudentFullReportScreen(
                         dao = dao, scope = scope,
                         snackbar = snackbarHostState
