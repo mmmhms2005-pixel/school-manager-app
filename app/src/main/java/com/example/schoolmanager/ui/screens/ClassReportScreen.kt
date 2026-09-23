@@ -211,7 +211,7 @@ fun ClassReportScreen(
                         }
 
                         // ★ فتح PDF مباشرة
-                        openPdfDirectly(ctx, file)
+                        nav.navigate("pdf_preview/${file.absolutePath}")
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد الكشف الشامل",
