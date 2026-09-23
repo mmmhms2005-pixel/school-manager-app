@@ -178,7 +178,7 @@ fun ReportsScreen(nav: NavController) {
                         snackbar = snackbarHostState
                     )
     
-                    "monthly_certificate" -> MonthlyCertificateScreen(
+ "monthly_certificate" -> MonthlyCertificateScreen(
     nav = nav,
     dao = dao,
     scope = scope,
