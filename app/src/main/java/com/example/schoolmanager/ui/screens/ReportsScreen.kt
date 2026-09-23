@@ -422,7 +422,7 @@ fun AnnualGradesReportScreen(
                         }
 
                         // ★ فتح PDF مباشرة
-                        nav.navigate("pdf_preview/${file.absolutePath}")
+                        nav.navigate("pdf_preview/${file.name}")
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد PDF بنجاح",
