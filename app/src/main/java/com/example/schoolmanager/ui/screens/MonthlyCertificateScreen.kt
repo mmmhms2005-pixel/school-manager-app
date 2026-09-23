@@ -204,6 +204,7 @@ fun MonthlyCertificateScreen(
                             schoolName = settings?.schoolName ?: "",
                             academicYear = settings?.academicYear ?: "",
                             principalName = settings?.principalName ?: "",
+                            homeroomTeacherName = homeroomName,
                             logoBase64 = settings?.logoBase64 ?: ""
                         )
 
