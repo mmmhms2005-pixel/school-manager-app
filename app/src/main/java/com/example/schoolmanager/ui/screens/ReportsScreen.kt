@@ -143,7 +143,7 @@ fun ReportsScreen(nav: NavController) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(reports, key = { it.id }) { report ->
-                        ReportTileCard(report) { selectedReport = report.id }
+                        ReportTileCard(report, nav = nav) { selectedReport = report.id }
                     }
                 }
             } else {
