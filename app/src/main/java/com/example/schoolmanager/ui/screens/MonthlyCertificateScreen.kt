@@ -199,7 +199,11 @@ fun MonthlyCertificateScreen(
                             classes = classes,
                             sections = sections
                         )
-                        val homeroomName = settings?.principalName ?: ""
+                        val homeroomName = HomeroomTeacherHelper.getName(
+    teachers = allTeachers,
+    classId = selectedClassId,
+    sectionId = selectedSectionId
+)
 
                         val schoolInfo = PdfGenerator.SchoolInfo(
                             schoolName = settings?.schoolName ?: "",
