@@ -416,7 +416,7 @@ fun AnnualGradesReportScreen(
                         }
 
                         // ★ فتح PDF مباشرة
-                        openPdfDirectly(ctx, file)
+                        nav.navigate("pdf_preview/${file.absolutePath}")
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد PDF بنجاح",
@@ -434,7 +434,7 @@ fun AnnualGradesReportScreen(
         ) {
             Icon(Icons.Default.Description, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("توليد PDF", fontWeight = FontWeight.Bold)
+            Text("طباعة", fontWeight = FontWeight.Bold)
         }
 
         Spacer(Modifier.height(10.dp))
