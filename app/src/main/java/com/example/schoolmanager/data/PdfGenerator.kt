@@ -289,6 +289,7 @@ object PdfGenerator {
         school: SchoolInfo,
         fileName: String
     ): File {
+        try {
 
         val doc = PdfDocument()
         var absolutePageNumber = 1
@@ -439,10 +440,18 @@ object PdfGenerator {
 
             return outFile
 
-        } finally {
-
-            doc.close()
-        }
+     } catch (e: Exception) {
+    // حفظ الخطأ في ملف نصي
+    try {
+        val errorFile = java.io.File(context.getExternalFilesDir(null), "error_log.txt")
+        errorFile.appendText("\n--- خطأ في التوليد: ---\n")
+        errorFile.appendText(e.message ?: "خطأ غير معروف")
+        errorFile.appendText("\n${e.stackTraceToString()}\n")
+    } catch (ignored: Exception) {}
+    throw e
+} finally {
+    doc.close()
+}
     }
 
     // ═══════════════════════════════════════════
