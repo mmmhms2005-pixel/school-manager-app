@@ -217,6 +217,7 @@ fun ReportTileCard(report: ReportTile, nav: NavController, onClick: () -> Unit) 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnnualGradesReportScreen(
+    nav: NavController,
     dao: SchoolDao,
     app: SchoolApplication,
     scope: CoroutineScope,
