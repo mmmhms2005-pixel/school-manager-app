@@ -289,9 +289,10 @@ object PdfGenerator {
         school: SchoolInfo,
         fileName: String
     ): File {
+        val doc = PdfDocument()
         try {
 
-        val doc = PdfDocument()
+        
         var absolutePageNumber = 1
 
 
