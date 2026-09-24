@@ -1,6 +1,7 @@
 package com.example.schoolmanager.ui.screens
 
 import android.graphics.Bitmap
+import com.example.schoolmanager.data.PdfGenerator
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
