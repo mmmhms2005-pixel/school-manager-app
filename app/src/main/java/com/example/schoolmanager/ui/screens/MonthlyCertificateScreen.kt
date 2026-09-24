@@ -229,7 +229,7 @@ sectionId = sectionId
                             )
                         }
 
-                        openPdfDirectly(ctx, file)
+                        nav.navigate("pdf_preview/${file.name}")
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد ${entries.size} شهادة",
