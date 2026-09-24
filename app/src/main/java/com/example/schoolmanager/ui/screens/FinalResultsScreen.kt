@@ -241,7 +241,7 @@ fun FinalResultsScreen(
                         }
 
                         // ★ فتح PDF مباشرة
-                        openPdfDirectly(ctx, file)
+                        nav.navigate("pdf_preview/${file.name}")
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد النتيجة النهائية",
