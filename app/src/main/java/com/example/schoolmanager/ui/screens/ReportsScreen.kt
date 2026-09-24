@@ -156,7 +156,17 @@ fun ReportsScreen(nav: NavController) {
     scope = scope,
     snackbar = snackbarHostState
 )
-                    "student_periods" -> StudentPeriodsScreen(
+
+// ★★★ السطر الجديد هنا ★★★
+"student_report" -> StudentFullReportScreen(
+    nav = nav,
+    dao = dao,
+    scope = scope,
+    snackbar = snackbarHostState
+)
+// ★★★ نهاية السطر الجديد ★★★
+
+"student_periods" -> StudentPeriodsScreen(
     nav = nav,
     dao = dao,
     scope = scope,
