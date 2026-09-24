@@ -27,6 +27,9 @@ object PdfGenerator {
     private const val A4_WIDTH_LS_PT = 842
     private const val A4_HEIGHT_LS_PT = 595
 
+    // أبعاد A5
+private const val A5_WIDTH_PT = 420
+private const val A5_HEIGHT_PT = 595
     private const val MARGIN = 25f
 
     // ═══════════════════════════════════════════
