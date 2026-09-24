@@ -332,18 +332,22 @@ private const val A5_HEIGHT_PT = 595
                      * 842 × 595
                      */
                     val pageWidth =
-                        if (report.isLandscape) {
-                            A4_WIDTH_LS_PT
-                        } else {
-                            A4_WIDTH_PT
-                        }
+    if (report.isA5) {
+        A5_WIDTH_PT
+    } else if (report.isLandscape) {
+        A4_WIDTH_LS_PT
+    } else {
+        A4_WIDTH_PT
+    }
 
                     val pageHeight =
-                        if (report.isLandscape) {
-                            A4_HEIGHT_LS_PT
-                        } else {
-                            A4_HEIGHT_PT
-                        }
+    if (report.isA5) {
+        A5_HEIGHT_PT
+    } else if (report.isLandscape) {
+        A4_HEIGHT_LS_PT
+    } else {
+        A4_HEIGHT_PT
+    }
 
                     val pageInfo =
                         PdfDocument.PageInfo.Builder(
