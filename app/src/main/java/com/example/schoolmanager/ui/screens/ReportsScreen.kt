@@ -156,14 +156,13 @@ fun ReportsScreen(nav: NavController) {
     scope = scope,
     snackbar = snackbarHostState
 )
-                    "student_report" -> StudentFullReportScreen(
-                        dao = dao, scope = scope,
-                        snackbar = snackbarHostState
-                    )
                     "student_periods" -> StudentPeriodsScreen(
-                        dao = dao, scope = scope,
-                        snackbar = snackbarHostState
-                    ) 
+    nav = nav,
+    dao = dao,
+    scope = scope,
+    snackbar = snackbarHostState
+)
+                    
                     "class_report" -> ClassReportScreen(
     nav = nav,
     dao = dao,
