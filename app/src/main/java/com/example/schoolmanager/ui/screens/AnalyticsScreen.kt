@@ -210,6 +210,7 @@ fun AnalyticsScreen(
                                 columns = page1Cols,
                                 rows = page1Rows,
                                 isLandscape = false,
+                                isA5 = true,
                                 isMultiSubject = true
                             )
                         )
@@ -220,6 +221,7 @@ fun AnalyticsScreen(
                                 columns = cols,
                                 rows = rows,
                                 isLandscape = false,
+                                isA5 = true,
                                 isMultiSubject = true
                             )
                         )
@@ -231,6 +233,7 @@ fun AnalyticsScreen(
                                     columns = page2Cols,
                                     rows = page2Rows,
                                     isLandscape = false,
+                                    isA5 = true,
                                     redColumnIndices = setOf(2),
                                     isMultiSubject = true
                                 )
