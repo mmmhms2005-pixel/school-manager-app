@@ -1086,13 +1086,21 @@ object PdfGenerator {
                 String.format("%.2f", avg)
             } / $firstMax   |   التقدير: $overallRating"
 
-        drawCenteredText(
-            canvas,
-            totalsText,
-            x + width / 2f,
-            cy + 8f,
-            totalsPaint
-        )
+        // ★★★ التعديل: جعل التقدير أحمر إذا كان راسب ★★★
+val isFail = overallRating == "راسب"
+val ratingPaint = if (isFail) {
+    TextPaint(totalsPaint).apply { color = Color.RED }
+} else {
+    totalsPaint
+}
+drawCenteredText(
+    canvas,
+    totalsText,
+    x + width / 2f,
+    cy + 8f,
+    ratingPaint
+)
+// ★★★ نهاية التعديل ★★★nt
 
         cy += 14f
 
