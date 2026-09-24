@@ -146,13 +146,12 @@ fun AnalyticsScreen(
                         val a = analytics ?: return@launch
 
                         val cols = listOf(
-                            PdfGenerator.Column("المادة", 0.30f),
-                            PdfGenerator.Column("المتوسط", 0.15f),
-                            PdfGenerator.Column("الأعلى", 0.18f),
-                            PdfGenerator.Column("الأدنى", 0.18f),
-                            PdfGenerator.Column("نسبة النجاح", 0.19f)
-                        )
-
+    PdfGenerator.Column("المادة", 0.22f),
+    PdfGenerator.Column("المتوسط", 0.15f),
+    PdfGenerator.Column("الأعلى", 0.25f),
+    PdfGenerator.Column("الأدنى", 0.25f),
+    PdfGenerator.Column("نسبة النجاح", 0.13f)
+)
                         val rows = availableSubjects.map { subj ->
     val avg = a.avgPerSubject[subj.id] ?: 0.0
     val high = a.highestPerSubject[subj.id]
@@ -160,8 +159,8 @@ fun AnalyticsScreen(
     listOf(
         subj.name,
         String.format("%.1f", avg),
-        high?.let { "${it.second}" } ?: "-",
-        low?.let { "${it.second}" } ?: "-",
+        high?.let { "${it.first} - ${it.second}" } ?: "-",
+        low?.let { "${it.first} - ${it.second}" } ?: "-",
         "_"
     )
 }
