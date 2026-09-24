@@ -248,7 +248,7 @@ fun AnalyticsScreen(
                         }
 
                         // ★ فتح PDF مباشرة
-                        openPdfDirectly(ctx, file)
+                        nav.navigate("pdf_preview/${file.name}")
 
                         snackbar.showSnackbar(
                             message = "✅ تم توليد لوحة الإحصائيات",
