@@ -69,7 +69,7 @@ fun PdfPreviewScreen(nav: NavController, filePath: String) {
                     // ★★★ زر الحفظ الجديد ★★★
 Button(
     onClick = {
-        savePdfToDownloads(context, file)
+        PdfGenerator.savePdfToDownloads(context, file)
     },
     modifier = Modifier.padding(end = 8.dp),
     enabled = !isLoading && pages.isNotEmpty()
