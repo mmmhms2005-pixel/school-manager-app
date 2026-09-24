@@ -112,6 +112,7 @@ fun ReportsScreen(nav: NavController) {
     )
 
     var selectedReport by remember { mutableStateOf<String?>(null) }
+    val currentTitle = reports.find { it.id == selectedReport }?.title ?: "الكشوفات والتقارير"
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
