@@ -170,13 +170,17 @@ fun ReportsScreen(nav: NavController) {
     snackbar = snackbarHostState
 )
                     "final_results" -> FinalResultsScreen(
-                        dao = dao, scope = scope,
-                        snackbar = snackbarHostState
-                    )
+    nav = nav,
+    dao = dao,
+    scope = scope,
+    snackbar = snackbarHostState
+)
                     "analytics" -> AnalyticsScreen(
-                        dao = dao, scope = scope,
-                        snackbar = snackbarHostState
-                    )
+    nav = nav,
+    dao = dao,
+    scope = scope,
+    snackbar = snackbarHostState
+)
     
  "monthly_certificate" -> MonthlyCertificateScreen(
     nav = nav,
