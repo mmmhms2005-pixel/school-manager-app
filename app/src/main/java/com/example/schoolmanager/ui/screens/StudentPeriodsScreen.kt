@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentPeriodsScreen(
+    nav: NavController,
     dao: SchoolDao,
     scope: CoroutineScope,
     snackbar: SnackbarHostState
