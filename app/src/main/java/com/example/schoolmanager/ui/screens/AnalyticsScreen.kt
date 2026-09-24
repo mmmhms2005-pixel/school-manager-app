@@ -154,18 +154,17 @@ fun AnalyticsScreen(
                         )
 
                         val rows = availableSubjects.map { subj ->
-                            val avg = a.avgPerSubject[subj.id] ?: 0.0
-                            val high = a.highestPerSubject[subj.id]
-                            val low = a.lowestPerSubject[subj.id]
-                            listOf(
-                                subj.name,
-                                String.format("%.1f", avg),
-                                high?.let { "${it.first} (${it.second})" } ?: "-",
-                                low?.let { "${it.first} (${it.second})" } ?: "-",
-                                "-"
-                            )
-                        }
-
+    val avg = a.avgPerSubject[subj.id] ?: 0.0
+    val high = a.highestPerSubject[subj.id]
+    val low = a.lowestPerSubject[subj.id]
+    listOf(
+        subj.name,
+        String.format("%.1f", avg),
+        high?.let { "${it.second}" } ?: "-",
+        low?.let { "${it.second}" } ?: "-",
+        "_"
+    )
+}
                         val homeroomName = HomeroomTeacherHelper.getName(
                             classId = classId,
                             sectionId = sectionId,
