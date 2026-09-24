@@ -1200,7 +1200,7 @@ val namePaint =
 
         canvas.drawCircle(
             stampX,
-            sigY + 25f,
+            sigY + 30f,
             stampRadius,
             stampPaint
         )
@@ -1215,7 +1215,7 @@ val namePaint =
         canvas.drawText(
             "الختم",
             stampX,
-            sigY + 23f,
+            sigY + 28f,
             stampTextPaint
         )
 
