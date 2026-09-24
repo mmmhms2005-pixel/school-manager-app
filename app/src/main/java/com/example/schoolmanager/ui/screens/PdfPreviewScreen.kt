@@ -1,6 +1,11 @@
 package com.example.schoolmanager.ui.screens
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Image
@@ -92,23 +97,46 @@ fun PdfPreviewScreen(nav: NavController, filePath: String) {
                     Text("لا توجد صفحات لعرضها")
                 }
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(8.dp)
-                    ) {
-                        items(pages) { bitmap ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                Image(
-                                    bitmap = bitmap.asImageBitmap(),
-                                    contentDescription = "صفحة PDF",
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
+                    var scale by remember { mutableStateOf(1f) }
+var offset by remember { mutableStateOf(Offset.Zero) }
+
+Box(
+    modifier = Modifier
+        .fillMaxSize()
+        .pointerInput(Unit) {
+            detectTransformGestures { _, pan, zoom, _ ->
+                scale = (scale * zoom).coerceIn(0.5f, 5f)
+                offset += pan
+            }
+        },
+    contentAlignment = Alignment.Center
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale,
+                translationX = offset.x,
+                translationY = offset.y
+            ),
+        contentPadding = PaddingValues(8.dp)
+    ) {
+        items(pages) { bitmap ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "صفحة PDF",
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
                     }
                 }
             }
