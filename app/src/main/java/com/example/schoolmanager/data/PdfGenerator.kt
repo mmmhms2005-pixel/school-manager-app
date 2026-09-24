@@ -1896,7 +1896,7 @@ val namePaint =
 
         val stampPaint =
             Paint().apply {
-                color = Color.RED
+                color = Color.argb(100, 150, 150, 150)
                 style = Paint.Style.STROKE
                 strokeWidth = 1.5f
             }
@@ -1910,7 +1910,7 @@ val namePaint =
 
         val stampTextPaint =
             TextPaint().apply {
-                color = Color.RED
+                color = Color.argb(100, 150, 150, 150)
                 textSize = 7f
                 textAlign = Paint.Align.CENTER
             }
@@ -1918,14 +1918,14 @@ val namePaint =
         canvas.drawText(
             "الختم",
             x,
-            signLineY - 8f,
+            signLineY - 5f,
             stampTextPaint
         )
 
         canvas.drawText(
             "الرسمي",
             x,
-            signLineY - 1f,
+            signLineY - 12f,
             stampTextPaint
         )
     }
