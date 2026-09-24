@@ -203,7 +203,9 @@ fun MonthlyCertificateScreen(
                             classes = classes,
                             sections = sections
                         )
+                      
                         val homeroomName = HomeroomTeacherHelper.getName(
+   classes = classes,    
     teachers = allTeachers,
 classId = classId,
 sectionId = sectionId
