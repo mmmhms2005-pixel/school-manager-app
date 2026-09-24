@@ -1180,7 +1180,7 @@ object PdfGenerator {
 
         val stampPaint =
             Paint().apply {
-                color = Color.RED
+                color = Color.argb(100, 150, 150, 150)
                 style = Paint.Style.STROKE
                 strokeWidth = 1f
             }
@@ -1194,7 +1194,7 @@ object PdfGenerator {
 
         val stampTextPaint =
             TextPaint().apply {
-                color = Color.RED
+                color = Color.argb(100, 150, 150, 150)
                 textSize = 5f
                 textAlign = Paint.Align.CENTER
             }
@@ -1202,14 +1202,14 @@ object PdfGenerator {
         canvas.drawText(
             "الختم",
             stampX,
-            sigY,
+            sigY + 23f,
             stampTextPaint
         )
 
         canvas.drawText(
             "الرسمي",
             stampX,
-            sigY + 5f,
+            sigY + 28f,
             stampTextPaint
         )
     }
