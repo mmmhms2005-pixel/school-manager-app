@@ -101,14 +101,15 @@ private const val A5_HEIGHT_PT = 595
     )
 
     data class ReportData(
-        val title: String,
-        val meta: String,
-        val columns: List<Column>,
-        val rows: List<List<String>>,
-        val isLandscape: Boolean = false,
-        val redColumnIndices: Set<Int> = emptySet(),
-        val isMultiSubject: Boolean = false
-    )
+    val title: String,
+    val meta: String,
+    val columns: List<Column>,
+    val rows: List<List<String>>,
+    val isLandscape: Boolean = false,
+    val isA5: Boolean = false,
+    val redColumnIndices: Set<Int> = emptySet(),
+    val isMultiSubject: Boolean = false
+)
 
     data class SubjectGrade(
         val subjectName: String,
