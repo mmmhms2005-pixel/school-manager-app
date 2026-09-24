@@ -1187,7 +1187,7 @@ object PdfGenerator {
 
         canvas.drawCircle(
             stampX,
-            sigY + 2f,
+            sigY + 25f,
             stampRadius,
             stampPaint
         )
