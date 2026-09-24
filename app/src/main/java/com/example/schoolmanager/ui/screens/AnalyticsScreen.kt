@@ -1,6 +1,7 @@
 package com.example.schoolmanager.ui.screens
 
 import android.content.Intent
+import androidx.navigation.NavController
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -40,6 +41,7 @@ data class Analytics(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalyticsScreen(
+    nav: NavController,
     dao: SchoolDao,
     scope: CoroutineScope,
     snackbar: SnackbarHostState
