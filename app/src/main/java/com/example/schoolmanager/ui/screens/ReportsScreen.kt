@@ -117,7 +117,7 @@ fun ReportsScreen(nav: NavController) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("الكشوفات والتقارير", fontWeight = FontWeight.Bold) },
+                title = { Text(currentTitle) },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (selectedReport != null) selectedReport = null
