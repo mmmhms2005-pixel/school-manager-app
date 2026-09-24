@@ -1128,23 +1128,20 @@ drawCenteredText(
             )
 
         val sigPaint =
-            TextPaint().apply {
-                color = Color.DKGRAY
-                textSize = 7f
-                textAlign = Paint.Align.CENTER
-                isFakeBoldText = true
-            }
+    TextPaint().apply {
+        color = Color.BLACK
+        textSize = 9f
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
 
-        val namePaint =
-            TextPaint().apply {
-                color = Color.rgb(
-                    30,
-                    30,
-                    30
-                )
-                textSize = 6f
-                textAlign = Paint.Align.CENTER
-            }
+val namePaint =
+    TextPaint().apply {
+        color = Color.BLACK
+        textSize = 8f
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
 
         val sigLinePaint =
             Paint().apply {
