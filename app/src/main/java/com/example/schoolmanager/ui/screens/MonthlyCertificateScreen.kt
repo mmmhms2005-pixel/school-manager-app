@@ -254,6 +254,36 @@ sectionId = sectionId
                 fontWeight = FontWeight.Bold
             )
         }
+        Spacer(Modifier.height(8.dp))
+
+// ★★★ زر إرسال واتساب ★★★
+Button(
+    enabled = canGenerate,
+    onClick = {
+        scope.launch {
+            try {
+                val entries = buildMonthlyCertificates(
+                    filteredStudents = filteredStudents,
+                    subjects = availableSubjects,
+                    allGrades = allGrades,
+                    period = period,
+                    classes = classes,
+                    sections = sections
+                )
+                whatsAppEntries = entries
+                currentStudentIndex = 0
+                showWhatsAppDialog = true
+            } catch (e: Exception) {
+                snackbar.showSnackbar("❌ فشل: ${e.message}")
+            }
+        }
+    },
+    modifier = Modifier.fillMaxWidth()
+) {
+    Icon(Icons.Default.Email, contentDescription = null)
+    Spacer(Modifier.width(8.dp))
+    Text("إرسال عبر واتساب", fontWeight = FontWeight.Bold)
+}
 
         Spacer(Modifier.height(16.dp))
 
