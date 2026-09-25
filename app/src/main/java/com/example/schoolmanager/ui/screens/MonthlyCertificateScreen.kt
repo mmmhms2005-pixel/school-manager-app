@@ -76,7 +76,9 @@ fun MonthlyCertificateScreen(
     val canGenerate = classId.isNotBlank() &&
             availableSubjects.isNotEmpty() &&
             filteredStudents.isNotEmpty()
-
+var showWhatsAppDialog by remember { mutableStateOf(false) }
+var whatsAppEntries by remember { mutableStateOf<List<MonthlyCertEntry>>(emptyList()) }
+var currentStudentIndex by remember { mutableStateOf(0) }
     val pageCount = (filteredStudents.size + 1) / 2 // شهادتان في كل صفحة
 
     Column(
