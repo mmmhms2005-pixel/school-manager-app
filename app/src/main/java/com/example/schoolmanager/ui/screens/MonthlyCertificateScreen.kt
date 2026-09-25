@@ -1,6 +1,11 @@
 package com.example.schoolmanager.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Divider
 import androidx.compose.material.icons.filled.Email
 import com.example.schoolmanager.data.GradeCalculator
 import com.example.schoolmanager.data.WhatsAppHelper
@@ -377,6 +382,47 @@ if (showWhatsAppDialog && whatsAppEntries.isNotEmpty()) {
         title = { Text("إرسال شهادات الطلاب عبر واتساب") },
         text = {
             Column {
+                // ★★★ مربع البحث ★★★
+OutlinedTextField(
+    value = searchQuery,
+    onValueChange = { searchQuery = it },
+    label = { Text("ابحث عن طالب...") },
+    modifier = Modifier.fillMaxWidth(),
+    singleLine = true
+)
+
+// ★★★ قائمة الطلاب المطابقين ★★★
+val matchingStudents = whatsAppEntries.filter {
+    searchQuery.isBlank() || it.studentName.contains(searchQuery, ignoreCase = true)
+}
+
+if (searchQuery.isNotBlank() && matchingStudents.size > 1) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 150.dp)
+    ) {
+        LazyColumn {
+            items(matchingStudents) { matchingEntry ->
+                val index = whatsAppEntries.indexOf(matchingEntry)
+                Text(
+                    text = matchingEntry.studentName,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            currentStudentIndex = index
+                            searchQuery = ""
+                        }
+                        .padding(12.dp)
+                )
+                Divider()
+            }
+        }
+    }
+}
+
+Spacer(Modifier.height(8.dp))
+// ★★★ نهاية البحث ★★★
                 Text("الطالب ${currentStudentIndex + 1} من ${whatsAppEntries.size}",
                     fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
