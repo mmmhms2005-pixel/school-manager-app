@@ -1,6 +1,9 @@
 package com.example.schoolmanager.ui.screens
 
 import android.content.Intent
+import com.example.schoolmanager.data.WhatsAppHelper
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.schoolmanager.data.HomeroomTeacherHelper
 import androidx.compose.foundation.layout.*
@@ -362,6 +365,64 @@ Button(
             }
         }
     }
+    // ★★★ نافذة إرسال واتساب ★★★
+if (showWhatsAppDialog && whatsAppEntries.isNotEmpty()) {
+    val entry = whatsAppEntries[currentStudentIndex]
+    val student = filteredStudents.find { it.name == entry.studentName }
+
+    AlertDialog(
+        onDismissRequest = { showWhatsAppDialog = false },
+        title = { Text("إرسال شهادات الطلاب عبر واتساب") },
+        text = {
+            Column {
+                Text("الطالب ${currentStudentIndex + 1} من ${whatsAppEntries.size}",
+                    fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("👤 الطالب: ${entry.studentName}")
+                Text("👨‍👦 ولي الأمر: ${student?.guardian ?: "غير محدد"}")
+                Text("📞 الهاتف: ${student?.phone ?: "غير محدد"}")
+                Spacer(Modifier.height(8.dp))
+                Text("سيتم فتح واتساب مع الرسالة جاهزة للإرسال",
+                    fontSize = 12.sp, color = Color.Gray)
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val phone = student?.phone ?: ""
+                if (phone.isNotBlank()) {
+                    WhatsAppHelper.sendViaWhatsApp(
+                        ctx,
+                        phone,
+                        WhatsAppHelper.buildMonthlyCertMessage(entry, schoolInfo, period)
+                    )
+                }
+            }) {
+                Text("📤 إرسال")
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = {
+                    if (currentStudentIndex > 0) currentStudentIndex--
+                }) {
+                    Text("◀ السابق")
+                }
+                TextButton(onClick = {
+                    if (currentStudentIndex < whatsAppEntries.size - 1) {
+                        currentStudentIndex++
+                    } else {
+                        showWhatsAppDialog = false
+                    }
+                }) {
+                    Text("التالي ▶")
+                }
+                TextButton(onClick = { showWhatsAppDialog = false }) {
+                    Text("إغلاق")
+                }
+            }
+        }
+    )
+}
 }
 
 /**
