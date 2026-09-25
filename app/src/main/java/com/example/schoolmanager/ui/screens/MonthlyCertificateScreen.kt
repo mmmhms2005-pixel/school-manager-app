@@ -394,7 +394,17 @@ if (showWhatsAppDialog && whatsAppEntries.isNotEmpty()) {
                     WhatsAppHelper.sendViaWhatsApp(
                         ctx,
                         phone,
-                        WhatsAppHelper.buildMonthlyCertMessage(entry, schoolInfo, GradeCalculator.periodName(period))
+                        WhatsAppHelper.buildMonthlyCertMessage(
+    entry,
+    PdfGenerator.SchoolInfo(
+        schoolName = settings?.schoolName ?: "",
+        academicYear = settings?.academicYear ?: "",
+        principalName = settings?.principalName ?: "",
+        homeroomTeacherName = "",
+        logoBase64 = settings?.logoBase64 ?: ""
+    ),
+    GradeCalculator.periodName(period)
+)
                     )
                 }
             }) {
