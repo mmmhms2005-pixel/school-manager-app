@@ -83,6 +83,7 @@ fun MonthlyCertificateScreen(
 var showWhatsAppDialog by remember { mutableStateOf(false) }
 var whatsAppEntries by remember { mutableStateOf<List<PdfGenerator.MonthlyCertEntry>>(emptyList()) }
 var currentStudentIndex by remember { mutableStateOf(0) }
+var searchQuery by remember { mutableStateOf("") }
     val pageCount = (filteredStudents.size + 1) / 2 // شهادتان في كل صفحة
 
     Column(
