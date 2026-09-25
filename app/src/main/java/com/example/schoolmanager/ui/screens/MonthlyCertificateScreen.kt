@@ -462,9 +462,9 @@ Spacer(Modifier.height(8.dp))
         homeroomTeacherName = "",
         logoBase64 = settings?.logoBase64 ?: ""
     ),
-    GradeCalculator.periodName(period)
-)
-                    )
+    GradeCalculator.periodName(period),
+    customNote
+)                    
                 }
             }) {
                 Text("📤 إرسال")
