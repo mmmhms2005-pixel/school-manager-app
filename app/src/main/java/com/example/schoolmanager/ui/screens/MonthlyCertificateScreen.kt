@@ -1,6 +1,7 @@
 package com.example.schoolmanager.ui.screens
 
 import android.content.Intent
+import androidx.compose.material.icons.filled.Email
 import com.example.schoolmanager.data.GradeCalculator
 import com.example.schoolmanager.data.WhatsAppHelper
 import androidx.compose.ui.graphics.Color
