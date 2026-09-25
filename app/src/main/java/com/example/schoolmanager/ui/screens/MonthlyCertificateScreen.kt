@@ -464,8 +464,9 @@ Spacer(Modifier.height(8.dp))
     ),
     GradeCalculator.periodName(period),
     customNote
-)                    
-                }
+)
+ )                                                                                               
+ }
             }) {
                 Text("📤 إرسال")
             }
