@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.example.schoolmanager.SchoolApplication
-import com.example.schoolmanager.data.GradeCalculator
 import com.example.schoolmanager.data.PdfGenerator
 import com.example.schoolmanager.data.SchoolDao
 import com.example.schoolmanager.data.Student
