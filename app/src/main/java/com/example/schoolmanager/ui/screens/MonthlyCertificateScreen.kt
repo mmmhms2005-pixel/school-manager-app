@@ -89,6 +89,7 @@ var showWhatsAppDialog by remember { mutableStateOf(false) }
 var whatsAppEntries by remember { mutableStateOf<List<PdfGenerator.MonthlyCertEntry>>(emptyList()) }
 var currentStudentIndex by remember { mutableStateOf(0) }
 var searchQuery by remember { mutableStateOf("") }
+var customNote by remember { mutableStateOf("") }
     val pageCount = (filteredStudents.size + 1) / 2 // شهادتان في كل صفحة
 
     Column(
@@ -390,10 +391,21 @@ OutlinedTextField(
     modifier = Modifier.fillMaxWidth(),
     singleLine = true
 )
+Spacer(Modifier.height(8.dp))
 
+// ★★★ مربع الملاحظة ★★★
+OutlinedTextField(
+    value = customNote,
+    onValueChange = { customNote = it },
+    label = { Text("ملاحظة لولي الأمر (اختياري)") },
+    modifier = Modifier.fillMaxWidth(),
+    minLines = 2,
+    maxLines = 4
+)
+// ★★★ نهاية الملاحظة ★★★
 // ★★★ قائمة الطلاب المطابقين ★★★
 val matchingStudents = whatsAppEntries.filter {
-    searchQuery.isBlank() || it.studentName.contains(searchQuery, ignoreCase = true)
+    searchQuery.isBlank() || it.studentName.startsWith(searchQuery, ignoreCase = true)
 }
 
 if (searchQuery.isNotBlank() && matchingStudents.size > 1) {
