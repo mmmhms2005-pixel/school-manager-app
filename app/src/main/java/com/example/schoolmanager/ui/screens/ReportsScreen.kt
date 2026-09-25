@@ -77,8 +77,6 @@ fun openPdfDirectly(context: android.content.Context, file: File) {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
-// ★ حفظ الملف في مجلد التنزيلات ★
-savePdfToDownloads(context, file)
 
 // ★ فتح نافذة الطباعة أو المشاركة ★
 context.startActivity(Intent.createChooser(viewIntent, "طباعة أو مشاركة الكشف"))
