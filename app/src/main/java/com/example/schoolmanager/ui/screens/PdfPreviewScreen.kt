@@ -71,6 +71,11 @@ fun PdfPreviewScreen(nav: NavController, filePath: String) {
 Button(
     onClick = {
         PdfGenerator.savePdfToDownloads(context, file)
+        android.widget.Toast.makeText(
+            context,
+            "✅ تم حفظ الملف في مجلد التنزيلات",
+            android.widget.Toast.LENGTH_LONG
+        ).show()
     },
     modifier = Modifier.padding(end = 8.dp),
     enabled = !isLoading && pages.isNotEmpty()
