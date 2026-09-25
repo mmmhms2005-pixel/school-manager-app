@@ -1,6 +1,8 @@
 package com.example.schoolmanager.data
 
 import android.content.Context
+import com.example.schoolmanager.data.PdfGenerator.MonthlyCertEntry
+import com.example.schoolmanager.data.PdfGenerator.SchoolInfo
 import android.content.Intent
 import android.net.Uri
 import java.net.URLEncoder
@@ -22,7 +24,7 @@ object WhatsAppHelper {
 
         var totalScore = 0
         var totalMax = 0
-        entry.grades.forEach { g ->
+        entry.grades.forEach { g: PdfGenerator.SubjectGrade ->
             sb.append("• ${g.subjectName}: ${g.score}/${g.maxScore}\n")
             totalScore += g.score
             totalMax += g.maxScore
