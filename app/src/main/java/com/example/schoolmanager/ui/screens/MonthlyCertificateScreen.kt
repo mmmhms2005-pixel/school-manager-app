@@ -393,7 +393,7 @@ if (showWhatsAppDialog && whatsAppEntries.isNotEmpty()) {
                     WhatsAppHelper.sendViaWhatsApp(
                         ctx,
                         phone,
-                        WhatsAppHelper.buildMonthlyCertMessage(entry, schoolInfo, period)
+                        WhatsAppHelper.buildMonthlyCertMessage(entry, schoolInfo, GradeCalculator.periodName(period))
                     )
                 }
             }) {
