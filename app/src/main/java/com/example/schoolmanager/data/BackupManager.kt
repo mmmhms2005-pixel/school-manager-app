@@ -240,14 +240,15 @@ object BackupManager {
         root.put("sections", sectionsArr)
 
         val studentsArr = JSONArray()
-        dao.students().first().forEach { s ->
-            studentsArr.put(JSONObject().apply {
-                put("id", s.id); put("number", s.number); put("name", s.name)
-                put("classId", s.classId); put("sectionId", s.sectionId)
-                put("guardian", s.guardian); put("phone", s.phone)
-            })
-        }
-        root.put("students", studentsArr)
+dao.students().first().forEach { s ->
+    studentsArr.put(JSONObject().apply {
+        put("id", s.id); put("nu...")   // ← الأسطر الموجودة
+        put("classId", s.classId...)
+        put("guardian", s.guard...)
+        put("photoBase64", s.photoBase64)   // ★★★ السطر الجديد ★★★
+    })
+}
+root.put("students", studentsArr)
 
         val subjectsArr = JSONArray()
         dao.subjects().first().forEach { s ->
