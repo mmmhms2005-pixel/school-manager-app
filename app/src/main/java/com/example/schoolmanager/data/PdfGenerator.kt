@@ -854,6 +854,36 @@ private const val A5_HEIGHT_PT = 420
             } catch (e: Exception) {
             }
         }
+// ★★★ صورة الطالب (أعلى يمين) ★★★
+if (entry.photoBase64.isNotBlank()) {
+    try {
+        val photoBytes = Base64.decode(entry.photoBase64, Base64.DEFAULT)
+        val photoBitmap = BitmapFactory.decodeByteArray(photoBytes, 0, photoBytes.size)
+        if (photoBitmap != null) {
+            val photoSize = 32f
+            val photoX = x + width - photoSize - 8f
+            val photoY = y + 8f
+
+            val photoBorder = Paint().apply {
+                color = Color.rgb(180, 180, 180)
+                style = Paint.Style.STROKE
+                strokeWidth = 0.5f
+            }
+            canvas.drawRect(
+                photoX - 1f, photoY - 1f,
+                photoX + photoSize + 1f, photoY + photoSize + 1f,
+                photoBorder
+            )
+
+            canvas.drawBitmap(
+                photoBitmap,
+                null,
+                RectF(photoX, photoY, photoX + photoSize, photoY + photoSize),
+                null
+            )
+        }
+    } catch (e: Exception) {}
+}
 
         // اسم المدرسة
         val schoolPaint = TextPaint().apply {
