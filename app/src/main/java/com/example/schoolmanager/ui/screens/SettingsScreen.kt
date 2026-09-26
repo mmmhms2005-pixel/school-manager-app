@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.schoolmanager.SchoolApplication
+import com.example.schoolmanager.data.LanguageManager
 import com.example.schoolmanager.data.SchoolSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -38,6 +40,9 @@ fun SettingsScreen(nav: NavController) {
     val dao = app.database.dao()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // ★ لإعادة تحميل الشاشة عند تغيير اللغة
+    val currentLang = LanguageManager.currentLanguage
 
     var schoolName by remember { mutableStateOf("") }
     var academicYear by remember { mutableStateOf("") }
@@ -83,10 +88,18 @@ fun SettingsScreen(nav: NavController) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("بيانات المدرسة", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        if (currentLang == "ar") "بيانات المدرسة" else "School Data",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "رجوع")
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = if (currentLang == "ar") "رجوع" else "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -105,9 +118,59 @@ fun SettingsScreen(nav: NavController) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            // ═══════════════════════════════════
+            // ★★★ قسم اللغة ★★★
+            // ═══════════════════════════════════
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        LanguageManager.t("language"),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // ★ زر العربية
+                        LanguageButton(
+                            text = "العربية",
+                            selected = currentLang == "ar",
+                            onClick = {
+                                LanguageManager.setLanguage(ctx, "ar")
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        // ★ زر الإنجليزية
+                        LanguageButton(
+                            text = "English",
+                            selected = currentLang == "en",
+                            onClick = {
+                                LanguageManager.setLanguage(ctx, "en")
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // ═══ معلومات المدرسة ═══
             Card(Modifier.fillMaxWidth()) {
                 Text(
-                    "📌 هذه البيانات تظهر تلقائياً في ترويسة الكشوفات والتقارير المطبوعة.",
+                    if (currentLang == "ar")
+                        "📌 هذه البيانات تظهر تلقائياً في ترويسة الكشوفات والتقارير المطبوعة."
+                    else
+                        "📌 This data appears automatically in the header of printed reports.",
                     Modifier.padding(12.dp),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -119,7 +182,9 @@ fun SettingsScreen(nav: NavController) {
             OutlinedTextField(
                 value = schoolName,
                 onValueChange = { schoolName = it },
-                label = { Text("🏫 اسم المدرسة") },
+                label = {
+                    Text(if (currentLang == "ar") "🏫 اسم المدرسة" else "🏫 School Name")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -129,8 +194,12 @@ fun SettingsScreen(nav: NavController) {
             OutlinedTextField(
                 value = academicYear,
                 onValueChange = { academicYear = it },
-                label = { Text("📅 العام الدراسي") },
-                placeholder = { Text("مثال: 1446هـ") },
+                label = {
+                    Text(if (currentLang == "ar") "📅 العام الدراسي" else "📅 Academic Year")
+                },
+                placeholder = {
+                    Text(if (currentLang == "ar") "مثال: 1446هـ" else "e.g., 2024-2025")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -140,14 +209,20 @@ fun SettingsScreen(nav: NavController) {
             OutlinedTextField(
                 value = principalName,
                 onValueChange = { principalName = it },
-                label = { Text("👨‍💼 مدير المدرسة") },
+                label = {
+                    Text(if (currentLang == "ar") "👨‍💼 مدير المدرسة" else "👨‍💼 Principal Name")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
             Spacer(Modifier.height(20.dp))
 
-            Text("🖼️ شعار المدرسة", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(
+                if (currentLang == "ar") "🖼️ شعار المدرسة" else "🖼️ School Logo",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
             Spacer(Modifier.height(8.dp))
 
             if (logoBase64.isNotBlank()) {
@@ -165,12 +240,15 @@ fun SettingsScreen(nav: NavController) {
                         if (bitmap != null) {
                             Image(
                                 bitmap = bitmap.asImageBitmap(),
-                                contentDescription = "شعار المدرسة",
+                                contentDescription = "Logo",
                                 modifier = Modifier.size(120.dp)
                             )
                         } else {
-                            Text("⚠️ تعذر عرض الصورة", fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.error)
+                            Text(
+                                if (currentLang == "ar") "⚠️ تعذر عرض الصورة" else "⚠️ Cannot display image",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
@@ -185,7 +263,13 @@ fun SettingsScreen(nav: NavController) {
                     onClick = { imagePicker.launch("image/*") },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(if (logoBase64.isBlank()) "اختيار شعار" else "تغيير الشعار")
+                    Text(
+                        if (logoBase64.isBlank()) {
+                            if (currentLang == "ar") "اختيار شعار" else "Choose Logo"
+                        } else {
+                            if (currentLang == "ar") "تغيير الشعار" else "Change Logo"
+                        }
+                    )
                 }
                 if (logoBase64.isNotBlank()) {
                     OutlinedButton(
@@ -194,7 +278,7 @@ fun SettingsScreen(nav: NavController) {
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("حذف")
+                        Text(if (currentLang == "ar") "حذف" else "Delete")
                     }
                 }
             }
@@ -215,11 +299,12 @@ fun SettingsScreen(nav: NavController) {
                                 )
                             )
                             snackbarHostState.showSnackbar(
-                                "✅ تم حفظ بيانات المدرسة",
+                                if (currentLang == "ar") "✅ تم حفظ بيانات المدرسة"
+                                else "✅ School data saved",
                                 duration = SnackbarDuration.Short
                             )
                         } catch (e: Exception) {
-                            snackbarHostState.showSnackbar("❌ ${e.message ?: "خطأ"}")
+                            snackbarHostState.showSnackbar("❌ ${e.message ?: "Error"}")
                         }
                     }
                 },
@@ -227,10 +312,43 @@ fun SettingsScreen(nav: NavController) {
             ) {
                 Icon(Icons.Default.Save, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("حفظ البيانات", fontWeight = FontWeight.Bold)
+                Text(
+                    if (currentLang == "ar") "حفظ البيانات" else "Save Data",
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(Modifier.height(30.dp))
+        }
+    }
+}
+
+// ═══ زر اللغة ═══
+@Composable
+private fun LanguageButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (selected) {
+        Button(
+            onClick = onClick,
+            modifier = modifier,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Icon(Icons.Default.Check, contentDescription = null)
+            Spacer(Modifier.width(4.dp))
+            Text(text, fontWeight = FontWeight.Bold)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier
+        ) {
+            Text(text)
         }
     }
 }
