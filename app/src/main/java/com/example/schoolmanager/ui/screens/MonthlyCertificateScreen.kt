@@ -1,6 +1,5 @@
 package com.example.schoolmanager.ui.screens
 
-import android.content.Intent
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
@@ -26,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.PdfGenerator
 import com.example.schoolmanager.data.SchoolDao
@@ -69,6 +67,7 @@ fun MonthlyCertificateScreen(
     var currentStudentIndex by remember { mutableStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
     var customNote by remember { mutableStateOf("") }
+    var dialogMode by remember { mutableStateOf("grades") }
 
     val availableSections = remember(classId, classes, sections) {
         val cls = classes.find { it.id == classId }
@@ -278,6 +277,7 @@ fun MonthlyCertificateScreen(
                         currentStudentIndex = 0
                         searchQuery = ""
                         customNote = ""
+                        dialogMode = "grades"
                         showWhatsAppDialog = true
                     } catch (e: Exception) {
                         snackbar.showSnackbar("❌ فشل: ${e.message}")
@@ -310,6 +310,7 @@ fun MonthlyCertificateScreen(
                         whatsAppEntries = entries
                         currentStudentIndex = 0
                         searchQuery = ""
+                        dialogMode = "note"
                         showWhatsAppDialog = true
                     } catch (e: Exception) {
                         snackbar.showSnackbar("❌ فشل: ${e.message}")
@@ -400,14 +401,19 @@ fun MonthlyCertificateScreen(
             }
         }
 
-        // ═══ نافذة إرسال واتساب ═══
+        // ═══ نافذة إرسال واتساب / SMS ═══
         if (showWhatsAppDialog && whatsAppEntries.isNotEmpty()) {
             val entry = whatsAppEntries[currentStudentIndex]
             val student = filteredStudents.find { it.name == entry.studentName }
 
             AlertDialog(
                 onDismissRequest = { showWhatsAppDialog = false },
-                title = { Text("إرسال شهادات الطلاب عبر واتساب") },
+                title = {
+                    Text(
+                        if (dialogMode == "note") "📝 إرسال ملاحظة لولي الأمر"
+                        else "📤 إرسال الدرجات عبر واتساب"
+                    )
+                },
                 text = {
                     Column {
                         // مربع البحث
@@ -420,15 +426,18 @@ fun MonthlyCertificateScreen(
                         )
                         Spacer(Modifier.height(8.dp))
 
-                        // مربع الملاحظة
-                        OutlinedTextField(
-                            value = customNote,
-                            onValueChange = { customNote = it },
-                            label = { Text("ملاحظة لولي الأمر (اختياري)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 2,
-                            maxLines = 4
-                        )
+                        // مربع الملاحظة (يظهر فقط في وضع "note")
+                        if (dialogMode == "note") {
+                            OutlinedTextField(
+                                value = customNote,
+                                onValueChange = { customNote = it },
+                                label = { Text("ملاحظة لولي الأمر") },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 2,
+                                maxLines = 4
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
 
                         // قائمة الطلاب المطابقين
                         val matchingStudents = whatsAppEntries.filter {
@@ -467,34 +476,69 @@ fun MonthlyCertificateScreen(
                         Text("👤 الطالب: ${entry.studentName}")
                         Text("👨‍👦 ولي الأمر: ${student?.guardian ?: "غير محدد"}")
                         Text("📞 الهاتف: ${student?.phone ?: "غير محدد"}")
-                        Spacer(Modifier.height(8.dp))
-                        Text("سيتم فتح واتساب مع الرسالة جاهزة للإرسال",
-                            fontSize = 12.sp, color = Color.Gray)
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
-                        val phone = student?.phone ?: ""
-                        if (phone.isNotBlank()) {
-                            WhatsAppHelper.sendViaWhatsApp(
-                                ctx,
-                                phone,
-                                WhatsAppHelper.buildMonthlyCertMessage(
-                                    entry,
-                                    PdfGenerator.SchoolInfo(
+                    Row {
+                        // زر واتساب
+                        Button(
+                            onClick = {
+                                val phone = student?.phone ?: ""
+                                if (phone.isNotBlank()) {
+                                    val schoolInfo = PdfGenerator.SchoolInfo(
                                         schoolName = settings?.schoolName ?: "",
                                         academicYear = settings?.academicYear ?: "",
                                         principalName = settings?.principalName ?: "",
                                         homeroomTeacherName = "",
                                         logoBase64 = settings?.logoBase64 ?: ""
-                                    ),
-                                    GradeCalculator.periodName(period),
-                                    customNote
-                                )
-                            )
+                                    )
+                                    val message = if (dialogMode == "note") {
+                                        WhatsAppHelper.buildNoteOnlyMessage(entry, schoolInfo, customNote)
+                                    } else {
+                                        WhatsAppHelper.buildMonthlyCertMessage(
+                                            entry, schoolInfo,
+                                            GradeCalculator.periodName(period),
+                                            customNote
+                                        )
+                                    }
+                                    WhatsAppHelper.sendViaWhatsApp(ctx, phone, message)
+                                }
+                            },
+                            enabled = dialogMode == "grades" || customNote.isNotBlank()
+                        ) {
+                            Text("📱 واتساب")
                         }
-                    }) {
-                        Text("📤 إرسال")
+
+                        Spacer(Modifier.width(8.dp))
+
+                        // زر SMS
+                        Button(
+                            onClick = {
+                                val phone = student?.phone ?: ""
+                                if (phone.isNotBlank()) {
+                                    val schoolInfo = PdfGenerator.SchoolInfo(
+                                        schoolName = settings?.schoolName ?: "",
+                                        academicYear = settings?.academicYear ?: "",
+                                        principalName = settings?.principalName ?: "",
+                                        homeroomTeacherName = "",
+                                        logoBase64 = settings?.logoBase64 ?: ""
+                                    )
+                                    val message = if (dialogMode == "note") {
+                                        WhatsAppHelper.buildNoteOnlyMessage(entry, schoolInfo, customNote)
+                                    } else {
+                                        WhatsAppHelper.buildMonthlyCertMessage(
+                                            entry, schoolInfo,
+                                            GradeCalculator.periodName(period),
+                                            customNote
+                                        )
+                                    }
+                                    WhatsAppHelper.sendViaSms(ctx, phone, message)
+                                }
+                            },
+                            enabled = dialogMode == "grades" || customNote.isNotBlank()
+                        ) {
+                            Text("💬 SMS")
+                        }
                     }
                 },
                 dismissButton = {
