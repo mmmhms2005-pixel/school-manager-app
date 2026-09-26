@@ -136,14 +136,15 @@ object BackupManager {
                 for (i in 0 until arr.length()) {
                     val o = arr.getJSONObject(i)
                     dao.insertStudent(Student(
-                        id = o.getString("id"),
-                        number = o.optString("number", ""),
-                        name = o.optString("name", ""),
-                        classId = o.optString("classId", ""),
-                        sectionId = o.optString("sectionId", ""),
-                        guardian = o.optString("guardian", ""),
-                        phone = o.optString("phone", "")
-                    ))
+    id = o.getString("id"),
+    number = o.optString("number"),
+    name = o.optString("name"),
+    classId = o.optString("class..."),
+    sectionId = o.optString("se..."),
+    guardian = o.optString("gua..."),
+    phone = o.optString("phone"),
+    photoBase64 = o.optString("photoBase64")   // ★★★ السطر الجديد ★★★
+))
                     count++
                 }
             }
