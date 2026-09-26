@@ -12,7 +12,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SchoolClass::class, Section::class, Student::class,
         Subject::class, Teacher::class, Grade::class, SchoolSettings::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -73,6 +73,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // ★★★ v3 → v4: إضافة photoBase64 للـ students ★★★
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE students ADD COLUMN photoBase64 TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -80,7 +89,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "school_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }
