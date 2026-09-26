@@ -322,7 +322,7 @@ Button(
     Spacer(Modifier.width(8.dp))
     Text("📝 إرسال ملاحظة لولي الأمر", fontWeight = FontWeight.Bold)
 }
-
+}
         Spacer(Modifier.height(16.dp))
 
         // ═══ المعاينة ═══
@@ -583,4 +583,4 @@ private fun ratingFor(score: Int, max: Int): String {
     }
 }
 }
-}
+
