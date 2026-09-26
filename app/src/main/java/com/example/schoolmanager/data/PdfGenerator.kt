@@ -1423,7 +1423,37 @@ val namePaint =
         )
 
         y += 12f
+// ★★★ صورة الطالب (أعلى يمين) ★★★
+if (report.photoBase64.isNotBlank()) {
+    try {
+        val photoBytes = Base64.decode(report.photoBase64, Base64.DEFAULT)
+        val photoBitmap = BitmapFactory.decodeByteArray(photoBytes, 0, photoBytes.size)
+        if (photoBitmap != null) {
+            val photoSize = 45f
+            val photoX = pageWidth - MARGIN - photoSize
+            val photoY = MARGIN + 5f
 
+            // إطار رمادي للصورة
+            val photoBorder = Paint().apply {
+                color = Color.rgb(180, 180, 180)
+                style = Paint.Style.STROKE
+                strokeWidth = 0.8f
+            }
+            canvas.drawRect(
+                photoX - 1f, photoY - 1f,
+                photoX + photoSize + 1f, photoY + photoSize + 1f,
+                photoBorder
+            )
+
+            canvas.drawBitmap(
+                photoBitmap,
+                null,
+                RectF(photoX, photoY, photoX + photoSize, photoY + photoSize),
+                null
+            )
+        }
+    } catch (e: Exception) {}
+}
         // العنوان
         val titlePaint =
             TextPaint().apply {
