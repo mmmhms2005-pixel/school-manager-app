@@ -27,6 +27,7 @@ import androidx.navigation.NavController
 import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.LanguageManager
 import com.example.schoolmanager.data.SchoolSettings
+import com.example.schoolmanager.data.ThemeManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -41,8 +42,9 @@ fun SettingsScreen(nav: NavController) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ★ لإعادة تحميل الشاشة عند تغيير اللغة
+    // ★ لإعادة تحميل الشاشة عند تغيير اللغة أو الوضع
     val currentLang = LanguageManager.currentLanguage
+    val currentTheme = ThemeManager.currentTheme
 
     var schoolName by remember { mutableStateOf("") }
     var academicYear by remember { mutableStateOf("") }
@@ -140,22 +142,62 @@ fun SettingsScreen(nav: NavController) {
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // ★ زر العربية
                         LanguageButton(
                             text = "العربية",
                             selected = currentLang == "ar",
-                            onClick = {
-                                LanguageManager.setLanguage(ctx, "ar")
-                            },
+                            onClick = { LanguageManager.setLanguage(ctx, "ar") },
                             modifier = Modifier.weight(1f)
                         )
-                        // ★ زر الإنجليزية
                         LanguageButton(
                             text = "English",
                             selected = currentLang == "en",
-                            onClick = {
-                                LanguageManager.setLanguage(ctx, "en")
-                            },
+                            onClick = { LanguageManager.setLanguage(ctx, "en") },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // ═══════════════════════════════════
+            // ★★★ قسم الوضع الليلي ★★★
+            // ═══════════════════════════════════
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        if (currentLang == "ar") "🌙 الوضع الليلي" else "🌙 Dark Mode",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ThemeButton(
+                            text = if (currentLang == "ar") "فاتح" else "Light",
+                            selected = currentTheme == "light",
+                            onClick = { ThemeManager.setTheme(ctx, "light") },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ThemeButton(
+                            text = if (currentLang == "ar") "داكن" else "Dark",
+                            selected = currentTheme == "dark",
+                            onClick = { ThemeManager.setTheme(ctx, "dark") },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ThemeButton(
+                            text = if (currentLang == "ar") "تلقائي" else "Auto",
+                            selected = currentTheme == "system",
+                            onClick = { ThemeManager.setTheme(ctx, "system") },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -349,6 +391,36 @@ private fun LanguageButton(
             modifier = modifier
         ) {
             Text(text)
+        }
+    }
+}
+
+// ═══ زر الوضع الليلي ═══
+@Composable
+private fun ThemeButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (selected) {
+        Button(
+            onClick = onClick,
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+        ) {
+            Text(text, fontSize = 12.sp)
         }
     }
 }
