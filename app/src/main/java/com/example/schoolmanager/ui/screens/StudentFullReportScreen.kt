@@ -240,7 +240,7 @@ fun StudentFullReportScreen(
                             rows = rows,
                             isLandscape = false,
                             redColumnIndices = redCols,
-                            isMultiSubject = true
+                            isMultiSubject = true,
                             photoBase64 = selectedStudent?.photoBase64 ?: "",
                         )
 
