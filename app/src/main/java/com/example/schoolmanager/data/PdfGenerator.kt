@@ -108,7 +108,8 @@ private const val A5_HEIGHT_PT = 420
     val isLandscape: Boolean = false,
     val isA5: Boolean = false,
     val redColumnIndices: Set<Int> = emptySet(),
-    val isMultiSubject: Boolean = false
+    val isMultiSubject: Boolean = false,
+    val photoBase64: String = ""
 )
 
     data class SubjectGrade(
