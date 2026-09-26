@@ -605,12 +605,13 @@ private fun buildMonthlyCertificates(
         val sectionName = sections.find { it.id == student.sectionId }?.name ?: "—"
 
         PdfGenerator.MonthlyCertEntry(
-            studentNumber = student.number,
-            studentName = student.name,
-            className = className,
-            sectionName = sectionName,
-            grades = grades
-        )
+    studentNumber = student.number,
+    studentName = student.name,
+    className = className,
+    sectionName = sectionName,
+    grades = grades,
+    photoBase64 = student.photoBase64
+)
     }
 }
 
