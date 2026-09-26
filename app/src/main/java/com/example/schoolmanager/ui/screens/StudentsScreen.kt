@@ -1,20 +1,30 @@
 package com.example.schoolmanager.ui.screens
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -26,6 +36,7 @@ import com.example.schoolmanager.data.SchoolClass
 import com.example.schoolmanager.data.Section
 import com.example.schoolmanager.data.Student
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -204,6 +215,48 @@ fun StudentCard(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // ★★★ صورة الطالب ★★★
+            val bitmap = remember(student.photoBase64) {
+                if (student.photoBase64.isNotBlank()) {
+                    try {
+                        val bytes = Base64.decode(student.photoBase64, Base64.DEFAULT)
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    } catch (e: Exception) { null }
+                } else null
+            }
+
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                // صورة افتراضية
+                Box(
+                    Modifier
+                        .size(50.dp)
+                        .clip(CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(50.dp).clip(CircleShape)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+
             Column(Modifier.weight(1f)) {
                 Text(student.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Spacer(Modifier.height(4.dp))
@@ -236,12 +289,15 @@ fun StudentDialog(
     onDismiss: () -> Unit,
     onSave: (Student) -> Unit
 ) {
+    val ctx = LocalContext.current
+
     var number by remember { mutableStateOf(student?.number ?: "") }
     var name by remember { mutableStateOf(student?.name ?: "") }
     var classId by remember { mutableStateOf(student?.classId ?: "") }
     var sectionId by remember { mutableStateOf(student?.sectionId ?: "") }
     var guardian by remember { mutableStateOf(student?.guardian ?: "") }
     var phone by remember { mutableStateOf(student?.phone ?: "") }
+    var photoBase64 by remember { mutableStateOf(student?.photoBase64 ?: "") }
 
     var classExpanded by remember { mutableStateOf(false) }
     var sectionExpanded by remember { mutableStateOf(false) }
@@ -252,11 +308,93 @@ fun StudentDialog(
         sections.filter { it.id in ids }
     }
 
+    // ★★★ منتقي الصور ★★★
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            try {
+                val inputStream = ctx.contentResolver.openInputStream(it)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+                if (bitmap != null) {
+                    val resized = resizeBitmap(bitmap, 300)
+                    val baos = ByteArrayOutputStream()
+                    resized.compress(Bitmap.CompressFormat.JPEG, 80, baos)
+                    val bytes = baos.toByteArray()
+                    photoBase64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                }
+            } catch (e: Exception) { }
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (student == null) "إضافة طالب" else "تعديل بيانات الطالب") },
         text = {
-            Column(Modifier.fillMaxWidth().padding(4.dp)) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(4.dp)
+            ) {
+                // ★★★ قسم الصورة ★★★
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    val bitmap = remember(photoBase64) {
+                        if (photoBase64.isNotBlank()) {
+                            try {
+                                val bytes = Base64.decode(photoBase64, Base64.DEFAULT)
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            } catch (e: Exception) { null }
+                        } else null
+                    }
+
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.size(90.dp).clip(CircleShape)
+                        )
+                    } else {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(90.dp).clip(CircleShape)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(50.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    TextButton(onClick = { imagePicker.launch("image/*") }) {
+                        Text(if (photoBase64.isBlank()) "📷 اختيار صورة" else "🔄 تغيير الصورة")
+                    }
+                    if (photoBase64.isNotBlank()) {
+                        TextButton(onClick = { photoBase64 = "" }) {
+                            Text("🗑️ حذف", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                Divider()
+                Spacer(Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = number,
                     onValueChange = { number = it },
@@ -367,7 +505,8 @@ fun StudentDialog(
                         classId = classId,
                         sectionId = sectionId,
                         guardian = guardian.trim(),
-                        phone = phone.trim()
+                        phone = phone.trim(),
+                        photoBase64 = photoBase64
                     ))
                 }
             ) { Text("حفظ") }
@@ -530,6 +669,20 @@ fun BulkStudentsDialog(
             TextButton(onClick = onDismiss) { Text("إلغاء") }
         }
     )
+}
+
+// ★★★ دالة تصغير الصورة ★★★
+private fun resizeBitmap(bitmap: Bitmap, maxSize: Int): Bitmap {
+    val width = bitmap.width
+    val height = bitmap.height
+    if (width <= maxSize && height <= maxSize) return bitmap
+    val ratio = width.toFloat() / height.toFloat()
+    val (newW, newH) = if (width > height) {
+        maxSize to (maxSize / ratio).toInt()
+    } else {
+        (maxSize * ratio).toInt() to maxSize
+    }
+    return Bitmap.createScaledBitmap(bitmap, newW, newH, true)
 }
 
 private fun generateUniqueNumber(usedNumbers: Set<String>): String {
