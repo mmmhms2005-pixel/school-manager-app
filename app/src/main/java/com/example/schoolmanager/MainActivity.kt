@@ -34,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.schoolmanager.data.LanguageManager
 import com.example.schoolmanager.data.LicenseManager
 import com.example.schoolmanager.data.SecurityManager
+import com.example.schoolmanager.data.ThemeManager
 import com.example.schoolmanager.ui.screens.AboutScreen
 import com.example.schoolmanager.ui.screens.ActivationScreen
 import com.example.schoolmanager.ui.screens.ClassesScreen
@@ -68,8 +69,12 @@ class MainActivity : ComponentActivity() {
         // ★★★ تهيئة مدير اللغة ★★★
         LanguageManager.initialize(this)
 
+        // ★★★ تهيئة مدير الوضع الليلي ★★★
+        ThemeManager.initialize(this)
+
         setContent {
-            SchoolTheme {
+            // ★★★ تطبيق الوضع الليلي بناءً على الإعداد ★★★
+            SchoolTheme(useDark = ThemeManager.isDark(LocalContext.current)) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
