@@ -26,7 +26,8 @@ data class Student(
     val classId: String,
     val sectionId: String,
     val guardian: String,
-    val phone: String
+    val phone: String,
+    val photoBase64: String = ""
 )
 
 @Entity(tableName = "subjects")
