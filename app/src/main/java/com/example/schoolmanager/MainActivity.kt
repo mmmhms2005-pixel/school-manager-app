@@ -8,15 +8,28 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.schoolmanager.data.LicenseManager
 import com.example.schoolmanager.data.SecurityManager
@@ -104,38 +117,85 @@ fun AppRoot() {
     // ═══════════════════════════════════
 
     if (!licenseOk) {
-        // ★ الشاشة الأولى: التفعيل
         ActivationScreen(
             onActivated = {
                 licenseOk = true
             }
         )
     } else if (pinEnabled && locked) {
-        // ★ الشاشة الثانية: القفل بالـ PIN
         LockScreen()
     } else {
-        // ★ الشاشة الثالثة: التطبيق
         AppNav()
     }
 }
 
+// ═══ بيانات عنصر شريط التنقل السفلي ═══
+data class BottomNavItem(
+    val route: String,
+    val label: String,
+    val icon: ImageVector
+)
+
 @Composable
 fun AppNav() {
     val nav = rememberNavController()
-    NavHost(navController = nav, startDestination = "dashboard") {
-        composable("dashboard") { DashboardScreen(nav) }
-        composable("students") { StudentsScreen(nav) }
-        composable("classes") { ClassesScreen(nav) }
-        composable("subjects") { SubjectsScreen(nav) }
-        composable("teachers") { TeachersScreen(nav) }
-        composable("grades") { GradesScreen(nav) }
-        composable("reports") { ReportsScreen(nav) }
-        composable("settings") { SettingsScreen(nav) }
-        composable("about") { AboutScreen(nav) }
-        composable("pdf_preview/{filePath}") { backStackEntry ->
-    val filePath = backStackEntry.arguments?.getString("filePath") ?: ""
-    PdfPreviewScreen(nav = nav, filePath = filePath)
-}
+    val backStackEntry by nav.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+
+    // ★ عناصر شريط التنقل السفلي
+    val bottomItems = listOf(
+        BottomNavItem("dashboard", "الرئيسية", Icons.Default.Home),
+        BottomNavItem("students", "الطلاب", Icons.Default.Person),
+        BottomNavItem("reports", "التقارير", Icons.Default.Description),
+        BottomNavItem("settings", "الإعدادات", Icons.Default.Settings)
+    )
+
+    // ★ إخفاء الشريط السفلي في شاشة معاينة الـ PDF
+    val showBottomBar = currentRoute != null && !currentRoute.startsWith("pdf_preview")
+
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    bottomItems.forEach { item ->
+                        NavigationBarItem(
+                            selected = currentRoute == item.route,
+                            onClick = {
+                                if (currentRoute != item.route) {
+                                    nav.navigate(item.route) {
+                                        popUpTo("dashboard") { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label, fontSize = 11.sp) }
+                        )
+                    }
+                }
+            }
+        }
+    ) { padding ->
+        NavHost(
+            navController = nav,
+            startDestination = "dashboard",
+            modifier = Modifier.padding(padding)
+        ) {
+            composable("dashboard") { DashboardScreen(nav) }
+            composable("students") { StudentsScreen(nav) }
+            composable("classes") { ClassesScreen(nav) }
+            composable("subjects") { SubjectsScreen(nav) }
+            composable("teachers") { TeachersScreen(nav) }
+            composable("grades") { GradesScreen(nav) }
+            composable("reports") { ReportsScreen(nav) }
+            composable("settings") { SettingsScreen(nav) }
+            composable("about") { AboutScreen(nav) }
+            composable("pdf_preview/{filePath}") { backStackEntry ->
+                val filePath = backStackEntry.arguments?.getString("filePath") ?: ""
+                PdfPreviewScreen(nav = nav, filePath = filePath)
+            }
+        }
     }
 }
 
