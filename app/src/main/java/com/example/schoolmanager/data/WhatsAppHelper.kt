@@ -70,5 +70,36 @@ object WhatsAppHelper {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+  }
+    fun buildNoteOnlyMessage(
+    entry: MonthlyCertEntry,
+    school: SchoolInfo,
+    customNote: String
+): String {
+    val sb = StringBuilder()
+    sb.append("🏫 *${school.schoolName}*\n")
+    sb.append("📅 العام الدراسي: ${school.academicYear}\n")
+    sb.append("━━━━━━━━━━━━━━━━━━━\n\n")
+    sb.append("📝 *ملاحظة إلى ولي أمر الطالب:*\n")
+    sb.append("👤 الطالب: ${entry.studentName}\n")
+    sb.append("📚 الصف: ${entry.className} - ${entry.sectionName}\n\n")
+    sb.append("━━━━━━━━━━━━━━━━━━━\n")
+    sb.append("$customNote\n")
+    sb.append("━━━━━━━━━━━━━━━━━━━\n\n")
+    sb.append("مع تحيات إدارة ${school.schoolName}")
+    return sb.toString()
+}
+
+fun sendViaSms(context: Context, phoneNumber: String, message: String) {
+    try {
+        val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            data = Uri.parse("sms:$cleanNumber")
+            putExtra("sms_body", message)
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
+}
 }
