@@ -588,3 +588,5 @@ private fun ratingFor(score: Int, max: Int): String {
         else -> "راسب"
     }
 }
+}
+}
