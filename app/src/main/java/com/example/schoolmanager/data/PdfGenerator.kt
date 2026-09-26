@@ -866,17 +866,6 @@ if (entry.photoBase64.isNotBlank()) {
             val photoX = x + width - photoSize - 8f
             val photoY = y + 8f
 
-            val photoBorder = Paint().apply {
-                color = Color.rgb(180, 180, 180)
-                style = Paint.Style.STROKE
-                strokeWidth = 0.5f
-            }
-            canvas.drawRect(
-                photoX - 1f, photoY - 1f,
-                photoX + photoSize + 1f, photoY + photoSize + 1f,
-                photoBorder
-            )
-
             canvas.drawBitmap(
                 photoBitmap,
                 null,
