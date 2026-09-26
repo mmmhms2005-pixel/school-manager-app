@@ -398,7 +398,6 @@ Button(
                 }
             }
         }
-    }
     // ★★★ نافذة إرسال واتساب ★★★
 if (showWhatsAppDialog && whatsAppEntries.isNotEmpty()) {
     val entry = whatsAppEntries[currentStudentIndex]
