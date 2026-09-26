@@ -241,6 +241,7 @@ fun StudentFullReportScreen(
                             isLandscape = false,
                             redColumnIndices = redCols,
                             isMultiSubject = true
+                            photoBase64 = selectedStudent?.photoBase64 ?: ""
                         )
 
                         val file = withContext(Dispatchers.IO) {
