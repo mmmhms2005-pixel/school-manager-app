@@ -259,6 +259,7 @@ sectionId = sectionId
         Spacer(Modifier.height(8.dp))
 
 // ★★★ زر إرسال واتساب ★★★
+// ★★★ زر إرسال الدرجات عبر واتساب ★★★
 Button(
     enabled = canGenerate,
     onClick = {
@@ -274,12 +275,52 @@ Button(
                 )
                 whatsAppEntries = entries
                 currentStudentIndex = 0
+                searchQuery = ""
+                customNote = ""
                 showWhatsAppDialog = true
             } catch (e: Exception) {
                 snackbar.showSnackbar("❌ فشل: ${e.message}")
             }
         }
     },
+    modifier = Modifier.fillMaxWidth()
+) {
+    Icon(Icons.Default.Email, contentDescription = null)
+    Spacer(Modifier.width(8.dp))
+    Text("📤 إرسال الدرجات عبر واتساب", fontWeight = FontWeight.Bold)
+}
+
+Spacer(Modifier.height(8.dp))
+
+// ★★★ زر إرسال ملاحظة لولي الأمر ★★★
+Button(
+    enabled = canGenerate && customNote.isNotBlank(),
+    onClick = {
+        scope.launch {
+            try {
+                val entries = buildMonthlyCertificates(
+                    filteredStudents = filteredStudents,
+                    subjects = availableSubjects,
+                    allGrades = allGrades,
+                    period = period,
+                    classes = classes,
+                    sections = sections
+                )
+                whatsAppEntries = entries
+                currentStudentIndex = 0
+                searchQuery = ""
+                showWhatsAppDialog = true
+            } catch (e: Exception) {
+                snackbar.showSnackbar("❌ فشل: ${e.message}")
+            }
+        }
+    },
+    modifier = Modifier.fillMaxWidth()
+) {
+    Icon(Icons.Default.Info, contentDescription = null)
+    Spacer(Modifier.width(8.dp))
+    Text("📝 إرسال ملاحظة لولي الأمر", fontWeight = FontWeight.Bold)
+}
     modifier = Modifier.fillMaxWidth()
 ) {
     Icon(Icons.Default.Email, contentDescription = null)
