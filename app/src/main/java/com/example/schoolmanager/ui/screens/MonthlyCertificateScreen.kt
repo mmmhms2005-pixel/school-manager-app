@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.example.schoolmanager.SchoolApplication
 import com.example.schoolmanager.data.PdfGenerator
@@ -65,6 +64,12 @@ fun MonthlyCertificateScreen(
     var sectionExpanded by remember { mutableStateOf(false) }
     var periodExpanded by remember { mutableStateOf(false) }
 
+    var showWhatsAppDialog by remember { mutableStateOf(false) }
+    var whatsAppEntries by remember { mutableStateOf<List<PdfGenerator.MonthlyCertEntry>>(emptyList()) }
+    var currentStudentIndex by remember { mutableStateOf(0) }
+    var searchQuery by remember { mutableStateOf("") }
+    var customNote by remember { mutableStateOf("") }
+
     val availableSections = remember(classId, classes, sections) {
         val cls = classes.find { it.id == classId }
         val ids = cls?.sectionIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
@@ -86,12 +91,8 @@ fun MonthlyCertificateScreen(
     val canGenerate = classId.isNotBlank() &&
             availableSubjects.isNotEmpty() &&
             filteredStudents.isNotEmpty()
-var showWhatsAppDialog by remember { mutableStateOf(false) }
-var whatsAppEntries by remember { mutableStateOf<List<PdfGenerator.MonthlyCertEntry>>(emptyList()) }
-var currentStudentIndex by remember { mutableStateOf(0) }
-var searchQuery by remember { mutableStateOf("") }
-var customNote by remember { mutableStateOf("") }
-    val pageCount = (filteredStudents.size + 1) / 2 // شهادتان في كل صفحة
+
+    val pageCount = (filteredStudents.size + 1) / 2
 
     Column(
         Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState())
@@ -169,27 +170,26 @@ var customNote by remember { mutableStateOf("") }
 
         Spacer(Modifier.height(12.dp))
 
-        // ═══ ملاحظة توضيحية ═══
+        // ═══ بطاقة عدد الطلاب والأوراق ═══
         Card(
-    Modifier.fillMaxWidth(),
-    colors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
-    )
-) {
-    Column(Modifier.padding(12.dp)) {
-        Text(
-            "👥 عدد الطلاب: ${filteredStudents.size}",
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "📄 عدد الأوراق: $pageCount",
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp
-        )
-    }
-}
+            Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Text(
+                    "👥 عدد الطلاب: ${filteredStudents.size}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "📄 عدد الأوراق: $pageCount",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -208,13 +208,13 @@ var customNote by remember { mutableStateOf("") }
                             classes = classes,
                             sections = sections
                         )
-                      
+
                         val homeroomName = HomeroomTeacherHelper.getName(
-   classes = classes,    
-    teachers = allTeachers,
-classId = classId,
-sectionId = sectionId
-)
+                            classes = classes,
+                            teachers = allTeachers,
+                            classId = classId,
+                            sectionId = sectionId
+                        )
 
                         val schoolInfo = PdfGenerator.SchoolInfo(
                             schoolName = settings?.schoolName ?: "",
@@ -257,71 +257,72 @@ sectionId = sectionId
                 fontWeight = FontWeight.Bold
             )
         }
+
         Spacer(Modifier.height(8.dp))
 
-// ★★★ زر إرسال واتساب ★★★
-// ★★★ زر إرسال الدرجات عبر واتساب ★★★
-Button(
-    enabled = canGenerate,
-    onClick = {
-        scope.launch {
-            try {
-                val entries = buildMonthlyCertificates(
-                    filteredStudents = filteredStudents,
-                    subjects = availableSubjects,
-                    allGrades = allGrades,
-                    period = period,
-                    classes = classes,
-                    sections = sections
-                )
-                whatsAppEntries = entries
-                currentStudentIndex = 0
-                searchQuery = ""
-                customNote = ""
-                showWhatsAppDialog = true
-            } catch (e: Exception) {
-                snackbar.showSnackbar("❌ فشل: ${e.message}")
-            }
+        // ═══ زر إرسال الدرجات عبر واتساب ═══
+        Button(
+            enabled = canGenerate,
+            onClick = {
+                scope.launch {
+                    try {
+                        val entries = buildMonthlyCertificates(
+                            filteredStudents = filteredStudents,
+                            subjects = availableSubjects,
+                            allGrades = allGrades,
+                            period = period,
+                            classes = classes,
+                            sections = sections
+                        )
+                        whatsAppEntries = entries
+                        currentStudentIndex = 0
+                        searchQuery = ""
+                        customNote = ""
+                        showWhatsAppDialog = true
+                    } catch (e: Exception) {
+                        snackbar.showSnackbar("❌ فشل: ${e.message}")
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Email, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("📤 إرسال الدرجات عبر واتساب", fontWeight = FontWeight.Bold)
         }
-    },
-    modifier = Modifier.fillMaxWidth()
-) {
-    Icon(Icons.Default.Email, contentDescription = null)
-    Spacer(Modifier.width(8.dp))
-    Text("📤 إرسال الدرجات عبر واتساب", fontWeight = FontWeight.Bold)
-}
 
-Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
 
-// ★★★ زر إرسال ملاحظة لولي الأمر ★★★
-Button(
-    enabled = canGenerate && customNote.isNotBlank(),
-    onClick = {
-        scope.launch {
-            try {
-                val entries = buildMonthlyCertificates(
-                    filteredStudents = filteredStudents,
-                    subjects = availableSubjects,
-                    allGrades = allGrades,
-                    period = period,
-                    classes = classes,
-                    sections = sections
-                )
-                whatsAppEntries = entries
-                currentStudentIndex = 0
-                searchQuery = ""
-                showWhatsAppDialog = true
-            } catch (e: Exception) {
-                snackbar.showSnackbar("❌ فشل: ${e.message}")
-            }
+        // ═══ زر إرسال ملاحظة لولي الأمر ═══
+        Button(
+            enabled = canGenerate,
+            onClick = {
+                scope.launch {
+                    try {
+                        val entries = buildMonthlyCertificates(
+                            filteredStudents = filteredStudents,
+                            subjects = availableSubjects,
+                            allGrades = allGrades,
+                            period = period,
+                            classes = classes,
+                            sections = sections
+                        )
+                        whatsAppEntries = entries
+                        currentStudentIndex = 0
+                        searchQuery = ""
+                        showWhatsAppDialog = true
+                    } catch (e: Exception) {
+                        snackbar.showSnackbar("❌ فشل: ${e.message}")
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Info, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("📝 إرسال ملاحظة لولي الأمر", fontWeight = FontWeight.Bold)
         }
-    },
-    modifier = Modifier.fillMaxWidth()
-) {
-    Icon(Icons.Default.Info, contentDescription = null)
-    Spacer(Modifier.width(8.dp))
-    Text("📝 إرسال ملاحظة لولي الأمر", fontWeight = FontWeight.Bold)
-}
+
         Spacer(Modifier.height(16.dp))
 
         // ═══ المعاينة ═══
@@ -398,127 +399,128 @@ Button(
                 }
             }
         }
-    // ★★★ نافذة إرسال واتساب ★★★
-if (showWhatsAppDialog && whatsAppEntries.isNotEmpty()) {
-    val entry = whatsAppEntries[currentStudentIndex]
-    val student = filteredStudents.find { it.name == entry.studentName }
 
-    AlertDialog(
-        onDismissRequest = { showWhatsAppDialog = false },
-        title = { Text("إرسال شهادات الطلاب عبر واتساب") },
-        text = {
-            Column {
-                // ★★★ مربع البحث ★★★
-OutlinedTextField(
-    value = searchQuery,
-    onValueChange = { searchQuery = it },
-    label = { Text("ابحث عن طالب...") },
-    modifier = Modifier.fillMaxWidth(),
-    singleLine = true
-)
-Spacer(Modifier.height(8.dp))
+        // ═══ نافذة إرسال واتساب ═══
+        if (showWhatsAppDialog && whatsAppEntries.isNotEmpty()) {
+            val entry = whatsAppEntries[currentStudentIndex]
+            val student = filteredStudents.find { it.name == entry.studentName }
 
-// ★★★ مربع الملاحظة ★★★
-OutlinedTextField(
-    value = customNote,
-    onValueChange = { customNote = it },
-    label = { Text("ملاحظة لولي الأمر (اختياري)") },
-    modifier = Modifier.fillMaxWidth(),
-    minLines = 2,
-    maxLines = 4
-)
-// ★★★ نهاية الملاحظة ★★★
-// ★★★ قائمة الطلاب المطابقين ★★★
-val matchingStudents = whatsAppEntries.filter {
-    searchQuery.isBlank() || it.studentName.startsWith(searchQuery, ignoreCase = true)
-}
+            AlertDialog(
+                onDismissRequest = { showWhatsAppDialog = false },
+                title = { Text("إرسال شهادات الطلاب عبر واتساب") },
+                text = {
+                    Column {
+                        // مربع البحث
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            label = { Text("ابحث عن طالب...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        Spacer(Modifier.height(8.dp))
 
-if (searchQuery.isNotBlank() && matchingStudents.size > 1) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 150.dp)
-    ) {
-        LazyColumn {
-            items(matchingStudents) { matchingEntry ->
-                val index = whatsAppEntries.indexOf(matchingEntry)
-                Text(
-                    text = matchingEntry.studentName,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            currentStudentIndex = index
-                            searchQuery = ""
+                        // مربع الملاحظة
+                        OutlinedTextField(
+                            value = customNote,
+                            onValueChange = { customNote = it },
+                            label = { Text("ملاحظة لولي الأمر (اختياري)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 2,
+                            maxLines = 4
+                        )
+
+                        // قائمة الطلاب المطابقين
+                        val matchingStudents = whatsAppEntries.filter {
+                            searchQuery.isBlank() || it.studentName.startsWith(searchQuery, ignoreCase = true)
                         }
-                        .padding(12.dp)
-                )
-                Divider()
-            }
+
+                        if (searchQuery.isNotBlank() && matchingStudents.size > 1) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 150.dp)
+                            ) {
+                                LazyColumn {
+                                    items(matchingStudents) { matchingEntry ->
+                                        val index = whatsAppEntries.indexOf(matchingEntry)
+                                        Text(
+                                            text = matchingEntry.studentName,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    currentStudentIndex = index
+                                                    searchQuery = ""
+                                                }
+                                                .padding(12.dp)
+                                        )
+                                        Divider()
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+                        Text("الطالب ${currentStudentIndex + 1} من ${whatsAppEntries.size}",
+                            fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text("👤 الطالب: ${entry.studentName}")
+                        Text("👨‍👦 ولي الأمر: ${student?.guardian ?: "غير محدد"}")
+                        Text("📞 الهاتف: ${student?.phone ?: "غير محدد"}")
+                        Spacer(Modifier.height(8.dp))
+                        Text("سيتم فتح واتساب مع الرسالة جاهزة للإرسال",
+                            fontSize = 12.sp, color = Color.Gray)
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        val phone = student?.phone ?: ""
+                        if (phone.isNotBlank()) {
+                            WhatsAppHelper.sendViaWhatsApp(
+                                ctx,
+                                phone,
+                                WhatsAppHelper.buildMonthlyCertMessage(
+                                    entry,
+                                    PdfGenerator.SchoolInfo(
+                                        schoolName = settings?.schoolName ?: "",
+                                        academicYear = settings?.academicYear ?: "",
+                                        principalName = settings?.principalName ?: "",
+                                        homeroomTeacherName = "",
+                                        logoBase64 = settings?.logoBase64 ?: ""
+                                    ),
+                                    GradeCalculator.periodName(period),
+                                    customNote
+                                )
+                            )
+                        }
+                    }) {
+                        Text("📤 إرسال")
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(onClick = {
+                            if (currentStudentIndex > 0) currentStudentIndex--
+                        }) {
+                            Text("◀ السابق")
+                        }
+                        TextButton(onClick = {
+                            if (currentStudentIndex < whatsAppEntries.size - 1) {
+                                currentStudentIndex++
+                            } else {
+                                showWhatsAppDialog = false
+                            }
+                        }) {
+                            Text("التالي ▶")
+                        }
+                        TextButton(onClick = { showWhatsAppDialog = false }) {
+                            Text("إغلاق")
+                        }
+                    }
+                }
+            )
         }
     }
-}
-
-Spacer(Modifier.height(8.dp))
-// ★★★ نهاية البحث ★★★
-                Text("الطالب ${currentStudentIndex + 1} من ${whatsAppEntries.size}",
-                    fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
-                Text("👤 الطالب: ${entry.studentName}")
-                Text("👨‍👦 ولي الأمر: ${student?.guardian ?: "غير محدد"}")
-                Text("📞 الهاتف: ${student?.phone ?: "غير محدد"}")
-                Spacer(Modifier.height(8.dp))
-                Text("سيتم فتح واتساب مع الرسالة جاهزة للإرسال",
-                    fontSize = 12.sp, color = Color.Gray)
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val phone = student?.phone ?: ""
-                if (phone.isNotBlank()) {
-                    WhatsAppHelper.sendViaWhatsApp(
-                        ctx,
-                        phone,
-                        WhatsAppHelper.buildMonthlyCertMessage(
-    entry,
-    PdfGenerator.SchoolInfo(
-        schoolName = settings?.schoolName ?: "",
-        academicYear = settings?.academicYear ?: "",
-        principalName = settings?.principalName ?: "",
-        homeroomTeacherName = "",
-        logoBase64 = settings?.logoBase64 ?: ""
-    ),
-    GradeCalculator.periodName(period),
-    customNote
-)
- )                                                                                               
- }
-            }) {
-                Text("📤 إرسال")
-            }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = {
-                    if (currentStudentIndex > 0) currentStudentIndex--
-                }) {
-                    Text("◀ السابق")
-                }
-                TextButton(onClick = {
-                    if (currentStudentIndex < whatsAppEntries.size - 1) {
-                        currentStudentIndex++
-                    } else {
-                        showWhatsAppDialog = false
-                    }
-                }) {
-                    Text("التالي ▶")
-                }
-                TextButton(onClick = { showWhatsAppDialog = false }) {
-                    Text("إغلاق")
-                }
-            }
-        }
-    )
-}
 }
 
 /**
