@@ -119,12 +119,13 @@ private const val A5_HEIGHT_PT = 420
     )
 
     data class MonthlyCertEntry(
-        val studentNumber: String,
-        val studentName: String,
-        val className: String,
-        val sectionName: String,
-        val grades: List<SubjectGrade>
-    )
+    val studentNumber: String,
+    val studentName: String,
+    val className: String,
+    val sectionName: String,
+    val grades: List<SubjectGrade>,
+    val photoBase64: String = ""
+)
 
     // ═══════════════════════════════════════════
     // أدوات الطباعة الآمنة
