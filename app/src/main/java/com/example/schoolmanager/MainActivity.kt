@@ -149,14 +149,14 @@ fun AppNav() {
                         NavigationBarItem(
                             selected = currentRoute == item.route,
                             onClick = {
-    nav.navigate(item.route) {
-        popUpTo(nav.graph.findStartDestination().id) {
-            saveState = true
-        }
-        launchSingleTop = true
-        restoreState = true
-    }
-},
+                                // ★ التنقل المبسّط (بدون saveState/restoreState)
+                                if (currentRoute != item.route) {
+                                    nav.navigate(item.route) {
+                                        popUpTo("dashboard") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
                             icon = {
                                 Icon(item.icon, contentDescription = LanguageManager.t(item.labelKey))
                             },
