@@ -170,34 +170,25 @@ var customNote by remember { mutableStateOf("") }
 
         // ═══ ملاحظة توضيحية ═══
         Card(
-            Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer
-            )
-        ) {
-            Column(Modifier.padding(12.dp)) {
-                Text(
-                    "📌 الشهادات تُولّد بحجم A5 (شهادتان في كل ورقة A4)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "• خط قص متقطع في منتصف كل صفحة.\n" +
-                    "• يمكن قصها وتوزيعها على الطلاب.\n" +
-                    "• كل شهادة تحتوي: درجات جميع المواد + المجموع + المتوسط + التقدير.",
-                    fontSize = 11.sp
-                )
-                if (canGenerate) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "📄 عدد الطلاب: ${filteredStudents.size}  |  عدد الأوراق: $pageCount",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
+    Modifier.fillMaxWidth(),
+    colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
+    )
+) {
+    Column(Modifier.padding(12.dp)) {
+        Text(
+            "👥 عدد الطلاب: ${filteredStudents.size}",
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "📄 عدد الأوراق: $pageCount",
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp
+        )
+    }
+}
         }
 
         Spacer(Modifier.height(12.dp))
