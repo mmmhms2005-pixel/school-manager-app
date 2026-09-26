@@ -1,6 +1,7 @@
 package com.example.schoolmanager.ui.screens
 
 import android.content.Intent
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
