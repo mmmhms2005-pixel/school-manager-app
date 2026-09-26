@@ -31,6 +31,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.schoolmanager.data.LanguageManager
 import com.example.schoolmanager.data.LicenseManager
 import com.example.schoolmanager.data.SecurityManager
 import com.example.schoolmanager.ui.screens.AboutScreen
@@ -64,6 +65,9 @@ class MainActivity : ComponentActivity() {
         // ★ تهيئة مدير الأمان
         SecurityManager.initialize(this)
 
+        // ★★★ تهيئة مدير اللغة ★★★
+        LanguageManager.initialize(this)
+
         setContent {
             SchoolTheme {
                 Surface(
@@ -83,7 +87,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // ★ القفل التلقائي بعد فترة الخمول
         if (backgroundTime > 0L && SecurityManager.isPinEnabled(this)) {
             val elapsed = System.currentTimeMillis() - backgroundTime
             val limit = SecurityManager.getAutoLockMinutes(this) * 60_000L
@@ -97,31 +100,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppRoot() {
     val ctx = LocalContext.current
-
-    // ═══════════════════════════════════
-    // ★ حالة الترخيص
-    // ═══════════════════════════════════
     var licenseOk by remember { mutableStateOf(LicenseManager.isActivated(ctx)) }
-
-    // ═══════════════════════════════════
-    // ★ حالة القفل بالـ PIN
-    // ═══════════════════════════════════
     val pinEnabled = SecurityManager.pinEnabledState.value
     val locked = SecurityManager.isLockedState.value
 
-    // ═══════════════════════════════════
-    // ★ الترتيب المهم:
-    // 1. إذا لم يُفعَّل → شاشة التفعيل
-    // 2. إذا كان PIN مفعَّلاً ومقفلاً → شاشة القفل
-    // 3. وإلا → التطبيق
-    // ═══════════════════════════════════
-
     if (!licenseOk) {
-        ActivationScreen(
-            onActivated = {
-                licenseOk = true
-            }
-        )
+        ActivationScreen(onActivated = { licenseOk = true })
     } else if (pinEnabled && locked) {
         LockScreen()
     } else {
@@ -132,7 +116,7 @@ fun AppRoot() {
 // ═══ بيانات عنصر شريط التنقل السفلي ═══
 data class BottomNavItem(
     val route: String,
-    val label: String,
+    val labelKey: String,
     val icon: ImageVector
 )
 
@@ -142,15 +126,14 @@ fun AppNav() {
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    // ★ عناصر شريط التنقل السفلي
+    // ★ عناصر شريط التنقل السفلي (بمفاتيح الترجمة)
     val bottomItems = listOf(
-        BottomNavItem("dashboard", "الرئيسية", Icons.Default.Home),
-        BottomNavItem("students", "الطلاب", Icons.Default.Person),
-        BottomNavItem("reports", "التقارير", Icons.Default.Description),
-        BottomNavItem("settings", "الإعدادات", Icons.Default.Settings)
+        BottomNavItem("dashboard", "home", Icons.Default.Home),
+        BottomNavItem("students", "students", Icons.Default.Person),
+        BottomNavItem("reports", "reports", Icons.Default.Description),
+        BottomNavItem("settings", "settings", Icons.Default.Settings)
     )
 
-    // ★ إخفاء الشريط السفلي في شاشة معاينة الـ PDF
     val showBottomBar = currentRoute != null && !currentRoute.startsWith("pdf_preview")
 
     Scaffold(
@@ -169,8 +152,12 @@ fun AppNav() {
                                     }
                                 }
                             },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label, fontSize = 11.sp) }
+                            icon = {
+                                Icon(item.icon, contentDescription = LanguageManager.t(item.labelKey))
+                            },
+                            label = {
+                                Text(LanguageManager.t(item.labelKey), fontSize = 11.sp)
+                            }
                         )
                     }
                 }
