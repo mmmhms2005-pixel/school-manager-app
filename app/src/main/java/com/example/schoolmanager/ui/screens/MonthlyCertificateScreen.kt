@@ -322,12 +322,6 @@ Button(
     Spacer(Modifier.width(8.dp))
     Text("📝 إرسال ملاحظة لولي الأمر", fontWeight = FontWeight.Bold)
 }
-    modifier = Modifier.fillMaxWidth()
-) {
-    Icon(Icons.Default.Email, contentDescription = null)
-    Spacer(Modifier.width(8.dp))
-    Text("إرسال عبر واتساب", fontWeight = FontWeight.Bold)
-}
 
         Spacer(Modifier.height(16.dp))
 
@@ -587,6 +581,5 @@ private fun ratingFor(score: Int, max: Int): String {
         percent >= 50 -> "ضعيف"
         else -> "راسب"
     }
-}
 }
 }
